@@ -4,11 +4,27 @@
  * Truffle mesh transport for avocado terminal sessions.
  * Syncs terminal sessions across devices over a Tailscale mesh via truffle.
  *
- * TODO: port mesh PTY transport/bridge from vibe-ctl.
- * Source files to migrate:
- *   - p008-claude-on-the-go/packages/desktop/src/main/services/foundation/pty/transports/mesh-pty-transport.ts
- *   - p008-claude-on-the-go/packages/desktop/src/main/services/foundation/pty/bridges/pty-mesh-bridge.ts
- *   - p008-claude-on-the-go/packages/desktop/src/main/services/foundation/pty/remote-sessions/remote-session-service.ts
+ * Status:
+ *   ✓ MeshPTYTransport — ported from vibe-ctl
+ *   ⧗ PTYMeshBridge         — not yet ported (needs truffle MeshService abstraction)
+ *   ⧗ RemoteSessionService  — not yet ported (needs relay + session-store-sync)
+ *
+ * Until the bridge + service land, consumers must:
+ *   1. Instantiate `@vibecook/truffle`'s MeshNode in their app
+ *   2. Provide an IMessageBus implementation backed by truffle's NapiMessageBus
+ *   3. Create MeshPTYTransport instances per connected device and register them
+ *      with `PTYSessionManager` from `@avocado/core`
+ *   4. Handle session announcements, relay sessions, and focus authority directly
+ *      in application code
+ *
+ * See docs/IMPLEMENTATION-PLAN.md § "avocado + truffle Integration" for the plan.
  */
 
-export {};
+export {
+  MeshPTYTransport,
+  createMeshPTYTransport,
+} from './mesh-pty-transport.js';
+export type {
+  IMessageBus,
+  MeshPTYTransportOptions,
+} from './mesh-pty-transport.js';
