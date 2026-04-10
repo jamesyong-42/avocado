@@ -11,6 +11,17 @@
 
 import { EventEmitter } from 'events';
 import { randomUUID } from 'crypto';
+import type {
+  TerminalType,
+  TerminalMode,
+  CreateTerminalOptions,
+  TerminalInfo,
+} from '@avocado/types';
+import type { ITerminalStoreSync } from './terminal-store-sync.js';
+
+// Re-export for convenience so consumers of @avocado/core can pick these up
+// without needing a separate @avocado/types import for basic terminal work.
+export type { TerminalType, TerminalMode, CreateTerminalOptions, TerminalInfo };
 
 // ===============================================================================
 // PTY SESSION SOURCE INTERFACE
@@ -39,42 +50,9 @@ export interface IPTYSessionSource extends EventEmitter {
 // TYPES
 // ===============================================================================
 
-export type TerminalType = 'headless' | 'virtual';
-export type TerminalMode = 'active' | 'passive';
-
-export interface TerminalCreateOptions {
-  cols: number;
-  rows: number;
-  mode: TerminalMode;
-}
-
-export interface TerminalInfo {
-  id: string;
-  sessionId: string;
-  type: TerminalType;
-  mode: TerminalMode;
-  cols: number;
-  rows: number;
-  createdAt: Date;
-}
-
 export interface TerminalDimensions {
   cols: number;
   rows: number;
-}
-
-/**
- * Abstract store sync interface for cross-device terminal mode synchronization.
- * No Electron dependencies - consumers provide their own implementation.
- */
-export interface ITerminalStoreSync extends EventEmitter {
-  dispose(): void;
-  getLocalDeviceId(): string | null;
-  registerTerminal(terminal: TerminalInfo, canonicalSessionId: string): void;
-  unregisterTerminal(terminalId: string): void;
-  updateTerminalDimensions(terminalId: string, cols: number, rows: number): void;
-  setActive(terminalId: string): void;
-  canResize(terminalId: string): boolean;
 }
 
 // ===============================================================================
@@ -88,7 +66,8 @@ interface BaseTerminal {
   mode: TerminalMode;
   cols: number;
   rows: number;
-  createdAt: Date;
+  /** Epoch milliseconds */
+  createdAt: number;
 }
 
 interface VirtualTerminalInternal extends BaseTerminal {
@@ -103,7 +82,7 @@ export interface TerminalService extends EventEmitter {
   setStoreSync(storeSync: ITerminalStoreSync): void;
   setActive(terminalId: string): void;
   applyModeFromStore(terminalId: string, mode: TerminalMode): void;
-  createVirtualTerminal(sessionId: string, options: TerminalCreateOptions, canonicalSessionId?: string): string;
+  createVirtualTerminal(sessionId: string, options: CreateTerminalOptions, canonicalSessionId?: string): string;
   getTerminal(terminalId: string): TerminalInfo | null;
   getSessionTerminals(sessionId: string): TerminalInfo[];
   getAllTerminals(): TerminalInfo[];
@@ -192,7 +171,7 @@ export class TerminalServiceImpl extends EventEmitter implements TerminalService
   // TERMINAL CREATION
   // ---------------------------------------------------------------------------
 
-  createVirtualTerminal(sessionId: string, options: TerminalCreateOptions, canonicalSessionId?: string): string {
+  createVirtualTerminal(sessionId: string, options: CreateTerminalOptions, canonicalSessionId?: string): string {
     this.validateSession(sessionId);
     this.validateActiveMode(sessionId, options.mode);
 
@@ -217,7 +196,7 @@ export class TerminalServiceImpl extends EventEmitter implements TerminalService
       mode,
       cols: actualCols,
       rows: actualRows,
-      createdAt: new Date(),
+      createdAt: Date.now(),
     };
 
     this.terminals.set(terminalId, terminal);

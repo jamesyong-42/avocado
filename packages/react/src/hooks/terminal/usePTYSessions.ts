@@ -79,7 +79,7 @@ export function usePTYSessions(): UsePTYSessionsResult {
   const filteredSessions = sourceFilter === 'all'
     ? sessions
     : sourceFilter === 'remote'
-      ? sessions.filter((s) => s.source === 'ipc' || s.source === 'remote')
+      ? sessions.filter((s) => s.source === 'ipc' || s.source === 'ws')
       : sessions.filter((s) => s.source === sourceFilter);
 
   const selectedSession = sessions.find((s) => s.id === selectedSessionId);

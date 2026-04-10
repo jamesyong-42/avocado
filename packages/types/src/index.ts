@@ -34,7 +34,7 @@ export type { IPTYSession, PTYSessionEvents } from './interfaces/pty-session.js'
 export type { IPTYTransport, PTYTransportEvents } from './interfaces/pty-transport.js';
 
 // Sessions
-export { BasePTYSession, DEFAULT_COLS, DEFAULT_ROWS, MAX_OUTPUT_BUFFER_SIZE } from './sessions/base-pty-session.js';
+export { BasePTYSession, DEFAULT_COLS, DEFAULT_ROWS } from './sessions/base-pty-session.js';
 export type { BasePTYSessionOptions } from './sessions/base-pty-session.js';
 
 // Utils
@@ -58,7 +58,7 @@ export type { NamespacedId } from './utils/session-id.js';
 export {
   CircularOutputBuffer,
   createOutputBuffer,
-  MAX_OUTPUT_BUFFER_SIZE as OUTPUT_BUFFER_MAX_SIZE,
+  MAX_OUTPUT_BUFFER_SIZE,
 } from './utils/output-buffer.js';
 
 // Protocol
@@ -89,7 +89,6 @@ export type {
 
 // Terminal types (renderer-side)
 export type {
-  TerminalSessionSource,
   TerminalType,
   TerminalMode,
   PtySession,

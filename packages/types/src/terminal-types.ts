@@ -2,23 +2,25 @@
  * Shared types for terminal management (renderer-side types)
  */
 
-export type TerminalSessionSource = 'local' | 'ipc' | 'remote';
+import type { SessionSource } from './types.js';
+
 export type TerminalType = 'headless' | 'virtual';
 export type TerminalMode = 'active' | 'passive';
 
 export interface PtySession {
   id: string;
-  source: TerminalSessionSource;
+  source: SessionSource;
   command: string;
   cwd: string;
-  createdAt: string;
+  /** Epoch milliseconds */
+  createdAt: number;
   pid: number;
   cols: number;
   rows: number;
   isRunning: boolean;
   isFocused?: boolean;
   exitCode?: number | null;
-  /** Device ID for remote (WS) sessions */
+  /** Device ID for remote (ws) sessions */
   deviceId?: string;
 }
 
@@ -35,7 +37,8 @@ export interface TerminalInfo {
   mode: TerminalMode;
   cols: number;
   rows: number;
-  createdAt: string;
+  /** Epoch milliseconds */
+  createdAt: number;
 }
 
 export interface TerminalSettings {

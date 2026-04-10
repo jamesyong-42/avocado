@@ -8,7 +8,7 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import type { TerminalBackend } from '@avocado/types';
 
-const AvocadoContext = createContext<TerminalBackend | null>(null);
+export const AvocadoContext = createContext<TerminalBackend | null>(null);
 
 export interface AvocadoProviderProps {
   backend: TerminalBackend;
@@ -25,7 +25,7 @@ export function AvocadoProvider({ backend, children }: AvocadoProviderProps) {
 
 /**
  * Hook to access the TerminalBackend from context.
- * Throws if used outside AvocadoProvider.
+ * Throws if used outside <AvocadoProvider>.
  */
 export function useAvocadoBackend(): TerminalBackend {
   const backend = useContext(AvocadoContext);
@@ -33,6 +33,15 @@ export function useAvocadoBackend(): TerminalBackend {
     throw new Error('useAvocadoBackend must be used within an <AvocadoProvider>');
   }
   return backend;
+}
+
+/**
+ * Hook to access the TerminalBackend from context, returning null if no
+ * <AvocadoProvider> is present. Use this when the caller needs to detect
+ * availability without throwing.
+ */
+export function useAvocadoBackendOptional(): TerminalBackend | null {
+  return useContext(AvocadoContext);
 }
 
 export default AvocadoProvider;

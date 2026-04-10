@@ -12,7 +12,7 @@
  */
 
 import { EventEmitter } from 'events';
-import type { TerminalInfo, TerminalMode } from './terminal-service.js';
+import type { TerminalInfo, TerminalMode } from '@avocado/types';
 
 // ===============================================================================
 // TYPES
@@ -173,7 +173,7 @@ export class TerminalStoreSyncImpl extends EventEmitter implements ITerminalStor
       type: terminal.type as TerminalEntryType,
       cols: terminal.cols,
       rows: terminal.rows,
-      createdAt: terminal.createdAt.getTime(),
+      createdAt: terminal.createdAt,
     };
 
     const locals = this.storeBackend.getLocalTerminals();

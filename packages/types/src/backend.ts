@@ -14,7 +14,7 @@ export interface TerminalBackend {
       source: string;
       command: string;
       cwd: string;
-      createdAt: string;
+      createdAt: number;
       pid: number;
       cols: number;
       rows: number;
@@ -42,7 +42,7 @@ export interface TerminalBackend {
       mode: string;
       cols: number;
       rows: number;
-      createdAt: string;
+      createdAt: number;
     }>; error?: string }>;
     resize(terminalId: string, cols: number, rows: number): Promise<{ success: boolean; error?: string }>;
     setActive(terminalId: string): Promise<{ success: boolean; error?: string }>;

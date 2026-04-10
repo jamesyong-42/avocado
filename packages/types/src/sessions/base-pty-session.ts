@@ -23,9 +23,6 @@ export const DEFAULT_COLS = 80;
 /** Default terminal rows */
 export const DEFAULT_ROWS = 24;
 
-/** Maximum output buffer size per session (1 MB) */
-export const MAX_OUTPUT_BUFFER_SIZE = 1024 * 1024;
-
 // ===============================================================================
 // BASE PTY SESSION
 // ===============================================================================

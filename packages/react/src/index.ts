@@ -26,7 +26,6 @@ export type { UseTerminalCoreOptions, UseTerminalCoreResult } from './components
 
 // Renderers
 export { DefaultRenderer } from './components/terminal/renderers/DefaultRenderer';
-export { WebGLRenderer } from './components/terminal/renderers/webgl/WebGLRenderer';
 export { CRTEffect, CRTEffectImpl } from './components/terminal/renderers/webgl/CRTEffect';
 export { TerminalPlane } from './components/terminal/renderers/webgl/TerminalPlane';
 export { useTextureSync, findXtermCanvas } from './components/terminal/renderers/webgl/useTextureSync';

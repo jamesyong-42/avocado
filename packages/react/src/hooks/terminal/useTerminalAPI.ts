@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useAvocadoBackend } from '../../context/AvocadoProvider';
+import { useAvocadoBackendOptional } from '../../context/AvocadoProvider';
 
 export interface UseTerminalAPIResult {
   isAvailable: boolean | null;
@@ -11,19 +11,12 @@ export interface UseTerminalAPIResult {
 }
 
 export function useTerminalAPI(): UseTerminalAPIResult {
+  const backend = useAvocadoBackendOptional();
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
 
-  // If we got here, useAvocadoBackend() didn't throw, so backend exists
-  try {
-    const backend = useAvocadoBackend();
-    useEffect(() => {
-      setIsAvailable(!!backend?.terminal);
-    }, [backend]);
-  } catch {
-    useEffect(() => {
-      setIsAvailable(false);
-    }, []);
-  }
+  useEffect(() => {
+    setIsAvailable(!!backend?.terminal);
+  }, [backend]);
 
   return {
     isAvailable,

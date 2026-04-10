@@ -29,10 +29,9 @@ export type {
   IPTYSessionSource,
   TerminalType,
   TerminalMode,
-  TerminalCreateOptions,
+  CreateTerminalOptions,
   TerminalInfo,
   TerminalDimensions,
-  ITerminalStoreSync,
   TerminalService,
 } from './terminal-service.js';
 
@@ -47,7 +46,7 @@ export type {
   TerminalEntry,
   TerminalsStoreData,
   TerminalStoreSyncEvents,
-  ITerminalStoreSync as ITerminalStoreSyncFull,
+  ITerminalStoreSync,
   ITerminalStoreBackend,
 } from './terminal-store-sync.js';
 
