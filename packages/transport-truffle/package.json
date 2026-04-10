@@ -1,0 +1,33 @@
+{
+  "name": "@avocado/transport-truffle",
+  "version": "0.1.0",
+  "description": "Truffle mesh transport for avocado terminal sessions — cross-device sync over Tailscale",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "files": ["dist", "src"],
+  "dependencies": {
+    "@avocado/types": "workspace:*",
+    "@avocado/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "@vibecook/truffle": ">=0.3.0"
+  },
+  "peerDependenciesMeta": {
+    "@vibecook/truffle": { "optional": false }
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

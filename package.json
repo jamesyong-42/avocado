@@ -1,0 +1,15 @@
+{
+  "name": "avocado",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Terminal session sync for the web stack — local, IPC, mesh, and WebSocket transports",
+  "scripts": {
+    "build": "pnpm -r build",
+    "clean": "pnpm -r clean",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "engines": {
+    "node": ">=18",
+    "pnpm": ">=9"
+  }
+}

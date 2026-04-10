@@ -1,0 +1,27 @@
+{
+  "name": "@avocado/transport-ipc",
+  "version": "0.1.0",
+  "description": "IPC transport (Unix Domain Socket / Named Pipe) for avocado terminal sessions",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "files": ["dist", "src"],
+  "dependencies": {
+    "@avocado/types": "workspace:*",
+    "@avocado/core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

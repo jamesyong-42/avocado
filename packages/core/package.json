@@ -1,0 +1,26 @@
+{
+  "name": "@avocado/core",
+  "version": "0.1.0",
+  "description": "Core PTY session management and terminal service for avocado",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "files": ["dist", "src"],
+  "dependencies": {
+    "@avocado/types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

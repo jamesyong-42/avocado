@@ -1,0 +1,34 @@
+{
+  "name": "@avocado/node-pty",
+  "version": "0.1.0",
+  "description": "node-pty integration for avocado local PTY sessions",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "files": ["dist", "src"],
+  "dependencies": {
+    "@avocado/types": "workspace:*"
+  },
+  "peerDependencies": {
+    "node-pty": ">=1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "node-pty": {
+      "optional": false
+    }
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

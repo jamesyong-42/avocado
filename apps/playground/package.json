@@ -1,0 +1,6 @@
+{
+  "name": "@avocado-playground/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Electron showcase app for avocado — demonstrates cross-device terminal session sync over the truffle mesh"
+}

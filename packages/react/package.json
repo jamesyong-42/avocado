@@ -1,0 +1,45 @@
+{
+  "name": "@avocado/react",
+  "version": "0.1.0",
+  "description": "React terminal components and hooks for avocado",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "files": ["dist", "src"],
+  "dependencies": {
+    "@avocado/types": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "xterm": ">=5.0.0",
+    "@xterm/addon-fit": ">=0.10.0",
+    "@xterm/addon-webgl": ">=0.18.0",
+    "@react-three/fiber": ">=8.0.0",
+    "@react-three/postprocessing": ">=2.0.0",
+    "three": ">=0.160.0",
+    "postprocessing": ">=6.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@xterm/addon-webgl": { "optional": true },
+    "@react-three/fiber": { "optional": true },
+    "@react-three/postprocessing": { "optional": true },
+    "three": { "optional": true },
+    "postprocessing": { "optional": true }
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/three": ">=0.160.0",
+    "typescript": "^5.5.0"
+  }
+}
