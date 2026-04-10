@@ -19,7 +19,8 @@
   "files": ["dist", "src"],
   "dependencies": {
     "@avocado/types": "workspace:*",
-    "@avocado/core": "workspace:*"
+    "@avocado/core": "workspace:*",
+    "@vibecook/truffle": "^0.3.24"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
