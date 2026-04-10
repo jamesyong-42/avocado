@@ -21,13 +21,8 @@
     "@avocado/types": "workspace:*",
     "@avocado/core": "workspace:*"
   },
-  "peerDependencies": {
-    "@vibecook/truffle": ">=0.3.0"
-  },
-  "peerDependenciesMeta": {
-    "@vibecook/truffle": { "optional": false }
-  },
   "devDependencies": {
+    "@types/node": "^22.0.0",
     "typescript": "^5.5.0"
   }
 }
