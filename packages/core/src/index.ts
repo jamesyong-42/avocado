@@ -51,25 +51,4 @@ export type {
   ITerminalStoreBackend,
 } from './terminal-store-sync.js';
 
-// Transports
-export {
-  IPCPTYTransport,
-  createIPCPTYTransport,
-} from './transports/ipc-transport.js';
-export type {
-  IMessageBus,
-  IPCPTYTransportMetadata,
-} from './transports/ipc-transport.js';
-
-// Bridges
-export {
-  PTYIPCBridgeImpl,
-  createPTYIPCBridge,
-} from './bridges/ipc-bridge.js';
-export type {
-  ConnectionReadyEvent,
-  BusMessage,
-  IIPCServer,
-  PTYIPCBridgeEvents,
-  IPTYIPCBridge,
-} from './bridges/ipc-bridge.js';
+// IPC transport (IPCPTYTransport, PTYIPCBridge) moved to @avocado/transport-ipc

@@ -18,9 +18,11 @@ import {
   IPCPTYTransport,
   createIPCPTYTransport,
   type IMessageBus,
-} from '../transports/ipc-transport.js';
-import type { PTYSessionManager } from '../pty-session-manager.js';
-import type { ITerminalStoreSync } from '../terminal-store-sync.js';
+} from './ipc-transport.js';
+import type {
+  PTYSessionManager,
+  ITerminalStoreSyncFull as ITerminalStoreSync,
+} from '@avocado/core';
 
 // ===============================================================================
 // ABSTRACT IPC SERVER INTERFACE

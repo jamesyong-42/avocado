@@ -4,11 +4,27 @@
  * IPC transport for avocado terminal sessions.
  * Provides Unix Domain Socket (macOS/Linux) and Named Pipe (Windows) transports,
  * used to bridge a CLI process to a desktop app running on the same machine.
- *
- * TODO: port IPCPTYTransport and PTYIPCBridge from @avocado/core.
- * Source files to move:
- *   - packages/core/src/transports/ipc-transport.ts  -> packages/transport-ipc/src/ipc-transport.ts
- *   - packages/core/src/bridges/ipc-bridge.ts        -> packages/transport-ipc/src/ipc-bridge.ts
  */
 
-export {};
+// Transport
+export {
+  IPCPTYTransport,
+  createIPCPTYTransport,
+} from './ipc-transport.js';
+export type {
+  IMessageBus,
+  IPCPTYTransportMetadata,
+} from './ipc-transport.js';
+
+// Bridge
+export {
+  PTYIPCBridgeImpl,
+  createPTYIPCBridge,
+} from './ipc-bridge.js';
+export type {
+  ConnectionReadyEvent,
+  BusMessage,
+  IIPCServer,
+  PTYIPCBridgeEvents,
+  IPTYIPCBridge,
+} from './ipc-bridge.js';
