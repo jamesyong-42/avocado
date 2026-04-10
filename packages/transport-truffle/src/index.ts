@@ -2,29 +2,72 @@
  * @avocado/transport-truffle — Barrel export
  *
  * Truffle mesh transport for avocado terminal sessions.
- * Syncs terminal sessions across devices over a Tailscale mesh via truffle.
  *
- * Status:
- *   ✓ MeshPTYTransport — ported from vibe-ctl
- *   ⧗ PTYMeshBridge         — not yet ported (needs truffle MeshService abstraction)
- *   ⧗ RemoteSessionService  — not yet ported (needs relay + session-store-sync)
+ * This package ports vibe-ctl's PTY mesh-sync stack to avocado, rewritten
+ * against `@vibecook/truffle`'s `NapiNode` API directly (no custom
+ * `IMessageBus` abstraction). All five core files are complete:
  *
- * Until the bridge + service land, consumers must:
- *   1. Instantiate `@vibecook/truffle`'s MeshNode in their app
- *   2. Provide an IMessageBus implementation backed by truffle's NapiMessageBus
- *   3. Create MeshPTYTransport instances per connected device and register them
- *      with `PTYSessionManager` from `@avocado/core`
- *   4. Handle session announcements, relay sessions, and focus authority directly
- *      in application code
+ *   ✓ MeshPTYTransport      — IPTYTransport over a single truffle peer
+ *   ✓ RelaySessionManager   — owner-side forwarders (local → viewer)
+ *   ✓ PTYSyncStore          — session discovery via truffle's SyncedStore
+ *   ✓ PTYMeshBridge         — wires peer lifecycle → transports → session manager
+ *   ✓ RemoteSessionService  — orchestrator that composes the above and
+ *                              dispatches owner-side PTY commands
  *
- * See docs/IMPLEMENTATION-PLAN.md § "avocado + truffle Integration" for the plan.
+ * Wiring cheat-sheet:
+ *
+ *   const node          = await createMeshNode({ name: 'my-device', ... });
+ *   const sessionManager = createPTYSessionManager();
+ *   const bridge        = new PTYMeshBridge({ node, sessionManager });
+ *   const syncStore     = new PTYSyncStore({ node });
+ *   const service       = new RemoteSessionService({
+ *     node, sessionManager, bridge, syncStore, notifier: myNotifier,
+ *   });
+ *   await bridge.initialize();
+ *   await service.enable();
  */
 
 export {
   MeshPTYTransport,
   createMeshPTYTransport,
+  PTY_NAMESPACE,
 } from './mesh-pty-transport.js';
+export type { MeshPTYTransportOptions } from './mesh-pty-transport.js';
+
+export {
+  RelaySessionManager,
+  RelayPTYSession,
+  createRelaySessionManager,
+} from './relay-session-manager.js';
 export type {
-  IMessageBus,
-  MeshPTYTransportOptions,
-} from './mesh-pty-transport.js';
+  IRelaySessionManager,
+  RelaySessionManagerEvents,
+} from './relay-session-manager.js';
+
+export {
+  PTYSyncStore,
+  createPTYSyncStore,
+  DEFAULT_PTY_STORE_ID,
+} from './pty-sync-store.js';
+export type {
+  PTYSessionsSlice,
+  PTYSyncStoreOptions,
+  RemoteSessionsChangeCallback,
+} from './pty-sync-store.js';
+
+export { PTYMeshBridge, createPTYMeshBridge } from './pty-mesh-bridge.js';
+export type {
+  IPTYMeshBridge,
+  PTYMeshBridgeOptions,
+  PTYMeshBridgeEvents,
+} from './pty-mesh-bridge.js';
+
+export {
+  RemoteSessionService,
+  createRemoteSessionService,
+} from './remote-session-service.js';
+export type {
+  IPeerNotifier,
+  RemoteSessionServiceOptions,
+  RemoteSessionServiceEvents,
+} from './remote-session-service.js';
