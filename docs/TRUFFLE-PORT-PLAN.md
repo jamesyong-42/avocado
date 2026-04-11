@@ -1,7 +1,7 @@
 # Truffle Mesh Port Plan (revised)
 
 **Date**: 2026-04-10
-**Truffle version**: `@vibecook/truffle@^0.3.24`
+**Truffle version**: `@vibecook/truffle@^0.4.0` *(originally drafted against 0.3.24; migrated to 0.4.0 / RFC 017 on 2026-04-11 — see commit log)*
 **Scope**: Port vibe-ctl's PTY mesh-sync code into `@avocado/transport-truffle`, using truffle directly — no abstraction layers.
 
 ## Principle

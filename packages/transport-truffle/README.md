@@ -70,8 +70,14 @@ import {
 } from '@avocado/transport-truffle';
 
 // 1. Create the truffle node (handles Tailscale auth, sidecar, peer discovery).
+//    RFC 017 (truffle 0.4.0): `appId` is required and scopes the mesh to your
+//    app; two apps with different `appId`s cannot see each other as peers.
+//    `deviceName` is the human-readable label (any Unicode); truffle derives
+//    a Tailscale-safe hostname from it automatically. If you omit `deviceId`,
+//    a stable ULID is generated and persisted on first run.
 const node = await createMeshNode({
-  name: 'my-device',
+  appId: 'avocado-playground',
+  deviceName: 'my-device',
   openUrl: (url) => { void shell.openExternal(url); },
   onAuthRequired: (url) => { /* surface to UI */ },
 });

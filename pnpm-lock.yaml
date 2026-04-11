@@ -108,8 +108,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@vibecook/truffle':
-        specifier: ^0.3.24
-        version: 0.3.24
+        specifier: ^0.4.0
+        version: 0.4.1
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -191,8 +191,8 @@ packages:
   '@types/webxr@0.5.24':
     resolution: {integrity: sha512-h8fgEd/DpoS9CBrjEQXR+dIDraopAEfu4wYVNY2tEPwk60stPWhvZMf4Foo5FakuQ7HFZoa8WceaWFervK2Ovg==}
 
-  '@vibecook/truffle-native@0.3.24':
-    resolution: {integrity: sha512-QI05X/e9SBxtEurZg2unEK6egD66CoSI1/JLEjUYdvBCaMWi8lpuQtDUv0ER1XTcAooSPnkTn+zAWnxeR8/pOQ==}
+  '@vibecook/truffle-native@0.4.1':
+    resolution: {integrity: sha512-rSflGkE0xVAdFSRY1jHbTWGAnvZxRwPR66C5VXWZKzPsl/wrG7lT25ceIJgRU048hsP/a3uv5ZrrFQM1x18GtA==}
     engines: {node: '>=18'}
 
   '@vibecook/truffle-sidecar-darwin-arm64@0.3.24':
@@ -225,8 +225,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@vibecook/truffle@0.3.24':
-    resolution: {integrity: sha512-e5/yQy/kwXLcJjhgl6Cj5Ed9DHIFTGOVB+VdqK4SGyajL72iXHdV14c2tos8K/dgm5xmRIGaw4MMXShnLuMYug==}
+  '@vibecook/truffle@0.4.1':
+    resolution: {integrity: sha512-5LM5L+i3F6SKGRpETpeChipiRi0CtvoISQ11AKU4Dwubdh//McbNIWH2GgkFmjjjk+u1/fZHyJMDTD9lzYeoQA==}
     engines: {node: '>=18'}
 
   '@webgpu/types@0.1.69':
@@ -406,7 +406,7 @@ snapshots:
 
   '@types/webxr@0.5.24': {}
 
-  '@vibecook/truffle-native@0.3.24': {}
+  '@vibecook/truffle-native@0.4.1': {}
 
   '@vibecook/truffle-sidecar-darwin-arm64@0.3.24':
     optional: true
@@ -423,9 +423,9 @@ snapshots:
   '@vibecook/truffle-sidecar-win32-x64@0.3.24':
     optional: true
 
-  '@vibecook/truffle@0.3.24':
+  '@vibecook/truffle@0.4.1':
     dependencies:
-      '@vibecook/truffle-native': 0.3.24
+      '@vibecook/truffle-native': 0.4.1
     optionalDependencies:
       '@vibecook/truffle-sidecar-darwin-arm64': 0.3.24
       '@vibecook/truffle-sidecar-darwin-x64': 0.3.24

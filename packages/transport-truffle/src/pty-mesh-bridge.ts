@@ -166,18 +166,21 @@ export class PTYMeshBridge extends EventEmitter implements IPTYMeshBridge {
     switch (event.eventType) {
       case 'ws_connected': {
         // `peer` may or may not be present on ws_connected events in
-        // 0.3.24 — handle both shapes. If missing, fall back to a
-        // peerId-only record using the event's peerId for the name.
+        // truffle 0.4.x — handle both shapes. If missing, fall back to a
+        // deviceId-only record using the event's `peerId` field (which
+        // RFC 017 redefined to carry the stable device ULID, even though
+        // the field name on `NapiPeerEvent` is still `peerId`).
         const peer: NapiPeer | undefined =
           event.peer ??
           (event.peerId
             ? {
-                id: event.peerId,
-                name: event.peerId,
+                deviceId: event.peerId,
+                deviceName: event.peerId,
                 ip: '',
                 online: true,
                 wsConnected: true,
                 connectionType: 'unknown',
+                tailscaleId: '',
               }
             : undefined);
         if (!peer) {
@@ -213,7 +216,12 @@ export class PTYMeshBridge extends EventEmitter implements IPTYMeshBridge {
   // ─────────────────────────────────────────────────────────────────────────
 
   private createTransportForPeer(peer: NapiPeer): void {
-    const existing = this.transports.get(peer.id);
+    // RFC 017 (truffle 0.4.0): peers are keyed by `deviceId` (stable ULID)
+    // and named via `deviceName`. The `peerId` parameter on
+    // `createMeshPTYTransport` still uses the legacy "peerId" name
+    // internally — that's intentional shadowing of `IPTYTransport.transportId`
+    // semantics; the value we pass is the new `deviceId`.
+    const existing = this.transports.get(peer.deviceId);
     if (existing) {
       // If we already have a transport for this peer, just make sure it's
       // marked ready (reconnect after a blip).
@@ -223,15 +231,15 @@ export class PTYMeshBridge extends EventEmitter implements IPTYMeshBridge {
 
     const transport = createMeshPTYTransport({
       node: this.node,
-      peerId: peer.id,
-      peerName: peer.name,
+      peerId: peer.deviceId,
+      peerName: peer.deviceName,
       isConnected: true,
     });
-    this.transports.set(peer.id, transport);
+    this.transports.set(peer.deviceId, transport);
     this.sessionManager.registerTransport(transport);
 
-    console.log(`${LOG_PREFIX} created transport for peer ${peer.id} (${peer.name})`);
-    this.emit('transportCreated', peer.id, transport);
+    console.log(`${LOG_PREFIX} created transport for peer ${peer.deviceId} (${peer.deviceName})`);
+    this.emit('transportCreated', peer.deviceId, transport);
   }
 
   private removeTransportForPeer(peerId: string, reason: string): void {

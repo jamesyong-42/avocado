@@ -20,7 +20,7 @@
   "dependencies": {
     "@avocado/types": "workspace:*",
     "@avocado/core": "workspace:*",
-    "@vibecook/truffle": "^0.3.24"
+    "@vibecook/truffle": "^0.4.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

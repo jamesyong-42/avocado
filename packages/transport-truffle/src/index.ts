@@ -16,7 +16,7 @@
  *
  * Wiring cheat-sheet:
  *
- *   const node          = await createMeshNode({ name: 'my-device', ... });
+ *   const node          = await createMeshNode({ appId: 'avocado-playground', deviceName: 'my-device', ... });
  *   const sessionManager = createPTYSessionManager();
  *   const bridge        = new PTYMeshBridge({ node, sessionManager });
  *   const syncStore     = new PTYSyncStore({ node });

@@ -103,7 +103,10 @@ export class PTYSyncStore extends EventEmitter {
     this.store = this.node.syncedStore(this.storeId);
     // Cache the local device id so we can filter ourselves out of remote
     // event dispatch without a round-trip per event.
-    this.localDeviceId = this.node.getLocalInfo().id;
+    // RFC 017 (truffle 0.4.0): NapiNodeIdentity exposes `deviceId` (stable
+    // ULID) instead of the old `id` field, which used to be the Tailscale
+    // stable node id.
+    this.localDeviceId = this.node.getLocalInfo().deviceId;
   }
 
   /** Store identifier in use (for logs/debugging). */
