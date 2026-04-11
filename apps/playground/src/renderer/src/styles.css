@@ -1,0 +1,221 @@
+/* Avocado playground — minimal inline-ish styles.
+ * v0.1 doesn't ship Tailwind; this file covers the whole app surface. */
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif;
+  background: #0f1117;
+  color: #e6e6e6;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 16px;
+  gap: 12px;
+  box-sizing: border-box;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #181b24;
+  border-radius: 6px;
+  border: 1px solid #262a36;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9aa0b0;
+}
+
+.identity {
+  font-size: 12px;
+  color: #9aa0b0;
+  display: flex;
+  gap: 16px;
+}
+
+.identity span strong {
+  color: #e6e6e6;
+  font-weight: 600;
+}
+
+.state-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.state-pill.idle {
+  background: #262a36;
+  color: #9aa0b0;
+}
+
+.state-pill.starting {
+  background: #2a2240;
+  color: #b89cff;
+}
+
+.state-pill.running {
+  background: #1a3322;
+  color: #7be490;
+}
+
+.state-pill.stopping,
+.state-pill.error {
+  background: #3a1d20;
+  color: #ff7b7b;
+}
+
+.panels {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.panel {
+  background: #181b24;
+  border: 1px solid #262a36;
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.panel h2 {
+  margin: 0 0 8px 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9aa0b0;
+}
+
+.panel ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  font-size: 12px;
+}
+
+.panel li {
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #cfd3e0;
+}
+
+.panel li:hover {
+  background: #1f2330;
+}
+
+.panel li.active {
+  background: #2a3040;
+  color: #ffffff;
+}
+
+.panel li.empty {
+  color: #565c70;
+  cursor: default;
+  font-style: italic;
+}
+
+.panel li.empty:hover {
+  background: transparent;
+}
+
+.main-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.toolbar button {
+  padding: 8px 14px;
+  background: #2a3040;
+  border: 1px solid #3a4050;
+  color: #e6e6e6;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.toolbar button:hover {
+  background: #33394c;
+}
+
+.toolbar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.terminal-host {
+  flex: 1;
+  background: #0a0b11;
+  border: 1px solid #262a36;
+  border-radius: 6px;
+  padding: 6px;
+  min-height: 0;
+  display: flex;
+}
+
+.terminal-host > * {
+  flex: 1;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #565c70;
+  font-size: 13px;
+  gap: 4px;
+}
+
+.empty-state em {
+  font-style: normal;
+  color: #9aa0b0;
+}
