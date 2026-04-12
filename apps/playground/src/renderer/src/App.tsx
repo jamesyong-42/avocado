@@ -258,7 +258,10 @@ function PlaygroundBody(): JSX.Element {
             if (terminalId) addToGrid(terminalId);
             return terminalId;
           }}
-          onDestroy={destroyTerminal}
+          onDestroy={async (terminalId) => {
+            toggleSelection(terminalId); // remove from grid if present
+            return destroyTerminal(terminalId);
+          }}
           maxTerminals={maxTerminals}
         />
       </div>
@@ -283,7 +286,10 @@ function PlaygroundBody(): JSX.Element {
               gridLayout={gridLayout}
               getSettings={getSettings}
               onSettingsChange={(terminalId, updates) => updateSettings(terminalId, updates)}
-              onRemoveFromGrid={toggleSelection}
+              onRemoveFromGrid={(terminalId) => {
+                toggleSelection(terminalId);
+                void destroyTerminal(terminalId);
+              }}
               onTerminalFocus={handleTerminalFocus}
               onTerminalBlur={handleTerminalBlur}
               onClearAll={clearSelection}
