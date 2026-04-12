@@ -45,6 +45,10 @@ export default defineConfig({
       },
     },
     resolve: {
+      // Resolve workspace packages from TypeScript source in dev via the
+      // "source" condition in each package.json's exports map. This avoids
+      // needing to rebuild library packages after every source change.
+      conditions: ['source'],
       alias: {
         '@shared': resolve('src/shared'),
       },
@@ -61,6 +65,10 @@ export default defineConfig({
   renderer: {
     plugins: [react()],
     resolve: {
+      // Same "source" condition — renderer imports from @avocado/react and
+      // @avocado/types resolve directly to .ts source files during dev,
+      // eliminating the stale-dist problem.
+      conditions: ['source'],
       alias: {
         '@': resolve('src/renderer/src'),
         '@shared': resolve('src/shared'),

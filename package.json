@@ -5,8 +5,11 @@
   "description": "Terminal session sync for the web stack — local, IPC, mesh, and WebSocket transports",
   "scripts": {
     "build": "tsc -b",
+    "dev": "tsc -b --watch",
     "clean": "tsc -b --clean && rm -rf packages/*/dist",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "playground": "pnpm -C apps/playground dev",
+    "build:all": "tsc -b && pnpm -C apps/playground run build"
   },
   "devDependencies": {
     "typescript": "^5.5.0"

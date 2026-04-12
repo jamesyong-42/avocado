@@ -70,7 +70,7 @@ export function TerminalPlane({ texture, canvas }: TerminalPlaneProps): ReactEle
   if (!texture) return null;
 
   return (
-    <mesh ref={meshRef} position={[0, 0, 0]} material={material}>
+    <mesh ref={meshRef} position={[0, 0, 0]} material={material as any}>
       <planeGeometry args={[planeSize.width, planeSize.height]} />
     </mesh>
   );

@@ -133,6 +133,7 @@ class CRTEffectImpl extends Effect {
     this._resolution = uniforms.get('resolution')!;
   }
 
+  // @ts-expect-error — three.js type version mismatch (WebGLRenderer)
   update(
     _renderer: THREE.WebGLRenderer,
     _inputBuffer: THREE.WebGLRenderTarget,
