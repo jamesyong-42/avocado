@@ -50,6 +50,11 @@ export interface BusMessage {
  */
 export interface IIPCServer extends EventEmitter {
   getMessageBus(): IMessageBus | null;
+  /** Register a handler for a message namespace. Returns unsubscribe function. */
+  registerEndpoint?(
+    namespace: string,
+    handler: (connectionId: string, message: { namespace: string; type: string; payload: unknown }) => void
+  ): () => void;
   // Events:
   // 'connectionReady': (conn: ConnectionReadyEvent) => void
   // 'clientDisconnected': (data: { connectionId: string; reason: string }) => void
@@ -135,6 +140,18 @@ export class PTYIPCBridgeImpl extends EventEmitter implements IPTYIPCBridge {
 
     ipcServer.on('connectionReady', this.connectionReadyHandler);
     ipcServer.on('clientDisconnected', this.clientDisconnectedHandler);
+
+    // Register a PTY namespace handler to route incoming messages to transports.
+    // Without this, messages like session:announce, output, resize from the CLI
+    // would be silently dropped by the server.
+    if (ipcServer.registerEndpoint) {
+      this.unsubscribePty = ipcServer.registerEndpoint('pty', (connectionId, message) => {
+        const transport = this.ipcTransports.get(connectionId);
+        if (transport) {
+          transport.handleMessage(message.type, message.payload);
+        }
+      });
+    }
 
     this.initialized = true;
     console.log(`${LOG_PREFIX} Initialized`);
