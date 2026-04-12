@@ -21,7 +21,10 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  padding: 16px;
+  /* No top padding — the header acts as the title bar and must touch y=0
+     so that -webkit-app-region: drag works for window dragging on macOS
+     hiddenInset title bar. */
+  padding: 0 16px 16px 16px;
   gap: 12px;
   box-sizing: border-box;
 }
@@ -30,10 +33,24 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  /* Extra top padding to clear macOS traffic lights (close/min/max) which
+     sit at roughly y=12 in a hiddenInset window. */
+  padding: 14px 16px 10px 80px;
   background: #181b24;
-  border-radius: 6px;
+  border-radius: 0 0 6px 6px;
   border: 1px solid #262a36;
+  border-top: none;
+  /* Draggable title bar region for frameless window */
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+/* Interactive elements inside the header must opt out of drag */
+.no-drag,
+.header button,
+.header a {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
 .header h1 {
@@ -218,4 +235,127 @@ body {
 .empty-state em {
   font-style: normal;
   color: #9aa0b0;
+}
+
+/* ─── Auth Gate ─────────────────────────────────────────────────────────── */
+
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 24px;
+  padding: 32px;
+  background: #181b24;
+  border: 1px solid #262a36;
+  border-radius: 12px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+}
+
+.auth-icon {
+  color: #b89cff;
+  margin-bottom: 16px;
+}
+
+.auth-title {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #e6e6e6;
+}
+
+.auth-description {
+  margin: 0 0 20px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #9aa0b0;
+}
+
+.auth-url-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.auth-url-box {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  background: #0f1117;
+  border: 1px solid #262a36;
+  border-radius: 6px;
+  font-family: 'Menlo', 'Monaco', monospace;
+  font-size: 12px;
+  color: #7be490;
+  overflow-x: auto;
+  white-space: nowrap;
+  user-select: all;
+  -webkit-user-select: all;
+}
+
+.auth-btn-primary {
+  padding: 10px 20px;
+  background: #7c5cff;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.auth-btn-primary:hover {
+  background: #6a4be0;
+}
+
+.auth-btn-primary:focus-visible {
+  outline: 2px solid #b89cff;
+  outline-offset: 2px;
+}
+
+.auth-btn-secondary {
+  padding: 10px 14px;
+  background: #262a36;
+  border: 1px solid #3a4050;
+  border-radius: 6px;
+  color: #e6e6e6;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.auth-btn-secondary:hover {
+  background: #33394c;
+}
+
+.auth-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.auth-waiting {
+  font-size: 11px;
+  color: #565c70;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }

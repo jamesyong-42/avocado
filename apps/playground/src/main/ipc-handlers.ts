@@ -40,6 +40,14 @@ export function registerIpcHandlers(
     (): NodeStatusEvent => manager.getStatusEvent()
   );
 
+  ipcMain.handle(
+    IPC.LIFECYCLE_OPEN_AUTH_URL,
+    async (_event: unknown, url: string): Promise<void> => {
+      const { shell } = await import('electron');
+      await shell.openExternal(url);
+    }
+  );
+
   // Peers
   ipcMain.handle(
     IPC.PEERS_LIST,
@@ -238,17 +246,15 @@ export function registerIpcHandlers(
     send(IPC.EVT_PEERS_CHANGED, peers);
   });
 
-  manager.on('ptyOutput', (sessionId, data) => {
-    // TerminalBackend.pty.onOutput is (terminalId, sessionId, base64Data).
-    // The playground has one virtual terminal per session, so we leave
-    // `terminalId` empty — the renderer's useTerminalCore hook looks up
-    // terminals by sessionId internally. base64-encoding is required to
-    // round-trip binary output cleanly through structured clone.
+  // Route terminal output through TerminalServiceImpl so each event
+  // carries the correct terminalId. useTerminalCore in the renderer
+  // matches on terminalId — sending '' (empty) would never match.
+  manager.on('terminalOutput', (evt) => {
     send(
       IPC.EVT_PTY_OUTPUT,
-      '',
-      sessionId,
-      data.toString('base64')
+      evt.terminalId,
+      evt.sessionId,
+      Buffer.from(evt.data, 'utf-8').toString('base64')
     );
   });
   manager.on('ptyExit', (sessionId, exitCode) => {

@@ -79,6 +79,7 @@ export interface AvocadoManagerEvents {
   authRequired: (url: string) => void;
   peersChanged: (peers: PeerInfo[]) => void;
   ptyOutput: (sessionId: string, data: Buffer) => void;
+  terminalOutput: (evt: { terminalId: string; sessionId: string; data: string }) => void;
   ptyExit: (sessionId: string, exitCode: number) => void;
   ptySessionDiscovered: (data: { sessionId: string; source: string }) => void;
   ptySessionLost: (data: {
@@ -164,6 +165,11 @@ export class AvocadoManager extends EventEmitter {
         destroyed: (evt: {
           terminalId: string;
           sessionId: string;
+        }) => void;
+        terminalOutput: (evt: {
+          terminalId: string;
+          sessionId: string;
+          data: string;
         }) => void;
       }
     | undefined;
@@ -478,14 +484,23 @@ export class AvocadoManager extends EventEmitter {
     }): void => {
       this.emit('terminalDestroyed', evt.terminalId, evt.sessionId);
     };
+    const terminalOutput = (evt: {
+      terminalId: string;
+      sessionId: string;
+      data: string;
+    }): void => {
+      this.emit('terminalOutput', evt);
+    };
     svc.on('terminalDestroyed', destroyed);
-    this.terminalSvcHandlers = { destroyed };
+    svc.on('terminalOutput', terminalOutput);
+    this.terminalSvcHandlers = { destroyed, terminalOutput };
   }
 
   private detachTerminalServiceListeners(svc: TerminalService): void {
     const h = this.terminalSvcHandlers;
     if (!h) return;
     svc.off('terminalDestroyed', h.destroyed);
+    svc.off('terminalOutput', h.terminalOutput);
     this.terminalSvcHandlers = undefined;
   }
 

@@ -107,6 +107,8 @@ export interface LifecycleAPI {
   start(): Promise<NodeStatusEvent>;
   stop(): Promise<void>;
   getStatus(): Promise<NodeStatusEvent>;
+  /** Open the Tailscale auth URL in the OS default browser. */
+  openAuthUrl(url: string): Promise<void>;
   onStatusChanged(cb: (event: NodeStatusEvent) => void): Unsubscribe;
   onAuthRequired(cb: (url: string) => void): Unsubscribe;
 }
@@ -212,6 +214,7 @@ export const IPC = {
   LIFECYCLE_START: 'avocado:lifecycle:start',
   LIFECYCLE_STOP: 'avocado:lifecycle:stop',
   LIFECYCLE_GET_STATUS: 'avocado:lifecycle:getStatus',
+  LIFECYCLE_OPEN_AUTH_URL: 'avocado:lifecycle:openAuthUrl',
   // Lifecycle (push)
   EVT_STATUS_CHANGED: 'avocado:event:statusChanged',
   EVT_AUTH_REQUIRED: 'avocado:event:authRequired',

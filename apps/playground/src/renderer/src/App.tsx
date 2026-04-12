@@ -29,6 +29,7 @@ import {
 import type { PtySession, TerminalInfo } from '@avocado/types';
 
 import { createElectronBackend } from './electron-backend';
+import { AuthGate } from './components/AuthGate';
 import { PeersList } from './components/PeersList';
 import { SessionsList } from './components/SessionsList';
 import type { NodeStatus, NodeStatusEvent } from '@shared/ipc';
@@ -91,6 +92,10 @@ export function App(): JSX.Element {
     };
   }, []);
 
+  // Show the auth gate as a full-screen overlay when truffle needs login.
+  // It dismisses automatically once status transitions to 'running'.
+  const showAuthGate = authUrl !== null && status !== 'running';
+
   return (
     <AvocadoProvider backend={backend}>
       <div className="app">
@@ -98,15 +103,16 @@ export function App(): JSX.Element {
           status={status}
           error={statusError}
           identity={identity}
-          authUrl={authUrl}
         />
-        {status === 'running' ? (
+        {showAuthGate ? (
+          <AuthGate authUrl={authUrl} />
+        ) : status === 'running' ? (
           <PlaygroundBody />
         ) : (
           <div className="empty-state">
             <em>
               {status === 'starting'
-                ? 'Starting truffle node…'
+                ? 'Starting truffle node...'
                 : status === 'error'
                   ? `Error: ${statusError ?? 'unknown'}`
                   : 'Idle'}
@@ -124,31 +130,27 @@ function Header({
   status,
   error,
   identity,
-  authUrl,
 }: {
   status: NodeStatus;
   error: string | undefined;
   identity: NodeStatusEvent['identity'];
-  authUrl: string | null;
 }): JSX.Element {
   return (
     <div className="header">
       <h1>Avocado Playground</h1>
-      <div className="identity">
+      <div className="identity no-drag">
         {identity ? (
           <>
             <span>
               device <strong>{identity.deviceName}</strong>
             </span>
             <span>
-              deviceId <strong>{identity.deviceId.slice(0, 8)}</strong>
+              id <strong>{identity.deviceId.slice(0, 8)}</strong>
             </span>
             <span>
               app <strong>{identity.appId}</strong>
             </span>
           </>
-        ) : authUrl ? (
-          <span title={authUrl}>auth required — check your browser</span>
         ) : error ? (
           <span style={{ color: '#ff7b7b' }}>{error}</span>
         ) : null}

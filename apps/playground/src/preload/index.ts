@@ -53,6 +53,8 @@ const api: AvocadoAPI = {
       ipcRenderer.invoke(IPC.LIFECYCLE_GET_STATUS),
     onStatusChanged: (cb): Unsubscribe =>
       subscribe<[NodeStatusEvent]>(IPC.EVT_STATUS_CHANGED, cb),
+    openAuthUrl: (url: string): Promise<void> =>
+      ipcRenderer.invoke(IPC.LIFECYCLE_OPEN_AUTH_URL, url),
     onAuthRequired: (cb): Unsubscribe =>
       subscribe<[string]>(IPC.EVT_AUTH_REQUIRED, cb),
   },
