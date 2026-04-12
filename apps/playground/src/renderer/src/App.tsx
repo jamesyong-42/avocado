@@ -26,7 +26,6 @@ import {
   useTerminals,
   useTerminalGrid,
 } from '@avocado/react';
-import type { TerminalInfo } from '@avocado/types';
 import type { RendererType, CRTPreset } from '@avocado/react';
 
 import { createElectronBackend } from './electron-backend';
@@ -39,11 +38,6 @@ import type { NodeStatus, NodeStatusEvent } from '@shared/ipc';
 // Single backend instance so `<AvocadoProvider>` doesn't recreate the
 // identity across re-renders.
 const backend = createElectronBackend();
-
-// Default terminal dimensions used for both the PTY and the virtual
-// terminal wrapper. xterm's fit addon adjusts after mount.
-const DEFAULT_COLS = 80;
-const DEFAULT_ROWS = 24;
 
 export function App(): JSX.Element {
   const [status, setStatus] = useState<NodeStatus>('idle');
@@ -205,31 +199,6 @@ function PlaygroundBody(): JSX.Element {
 
   const [renderer, setRenderer] = useState<RendererType>('default');
   const [crtPreset, setCrtPreset] = useState<CRTPreset>('classic');
-
-  // Track which sessions already have a virtual terminal wired up.
-  const pendingTerminalRef = useRef<Set<string>>(new Set());
-
-  // Auto-create a virtual terminal for any session that doesn't have one
-  // yet, and add it to the grid.
-  useEffect(() => {
-    for (const session of sessions) {
-      const hasTerminal = terminals.some(
-        (t: TerminalInfo) => t.sessionId === session.id
-      );
-      if (hasTerminal || pendingTerminalRef.current.has(session.id)) continue;
-      pendingTerminalRef.current.add(session.id);
-      void createTerminal(
-        session.id,
-        'virtual',
-        { cols: DEFAULT_COLS, rows: DEFAULT_ROWS, mode: 'active' },
-        session
-      ).then((terminalId) => {
-        if (terminalId) addToGrid(terminalId);
-      }).finally(() => {
-        pendingTerminalRef.current.delete(session.id);
-      });
-    }
-  }, [sessions, terminals, createTerminal, addToGrid]);
 
   const selectedTerminals = getSelectedTerminals(terminals);
 
