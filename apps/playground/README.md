@@ -15,7 +15,9 @@ implementation and a development harness. Run it with `pnpm dev`.
 3. A peers panel updates as devices come online via the mesh.
 4. **Spawn shell** creates a local PTY via `node-pty` inside the main
    process.
-5. The local session announces itself to the mesh via `PTYSyncStore`.
+5. **CLI sync** — run `avo bash` (or `avo claude`, etc.) in an external
+   terminal and the session appears in the playground via UDS/Named Pipe.
+6. The local session announces itself to the mesh via `PTYSyncStore`.
 6. A sessions panel lists every session (local + discovered remote).
 7. Selecting a session attaches a `VirtualTerminal` from `@avocado/react` —
    the xterm.js frontend talks to the main process through IPC.
@@ -42,6 +44,8 @@ implementation and a development harness. Run it with `pnpm dev`.
 │   ├── createPTYSessionManager()                                            │
 │   │     └── setProxySessionFactory(createProxyPTYSession)                  │
 │   ├── createTerminalService(sessionManager)                                │
+│   ├── createUDSServer() → ~/.avocado/playground.sock                       │
+│   ├── createPTYIPCBridge(sessionManager) → bridge.initialize(udsServer)    │
 │   ├── new PTYMeshBridge({ node, sessionManager })                          │
 │   ├── new PTYSyncStore({ node })                                           │
 │   └── new RemoteSessionService({                                           │
@@ -49,6 +53,7 @@ implementation and a development harness. Run it with `pnpm dev`.
 │       })                                                                   │
 │                                                                            │
 │   Local PTY  → pty-spawner.ts + LocalPTYSession.spawn(node-pty.spawn)      │
+│   CLI PTY    → UDSServer + PTYIPCBridge (sessions from `avo` command)      │
 │   Remote PTY → proxy-pty-session.ts on top of MeshPTYTransport             │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
@@ -149,6 +154,7 @@ Runs both the node-side and renderer-side TS configs in strict mode.
 **Supported:**
 
 - Local PTY spawning + rendering via xterm.js
+- CLI session sync via `@avocado/cli` (`avo` command) over UDS/Named Pipe
 - Truffle mesh lifecycle (start, stop, auth URL handoff to the OS browser)
 - Peer discovery
 - Cross-device session announcement via `PTYSyncStore`
