@@ -17,7 +17,7 @@
     "build": "tsc -b",
     "dev": "tsc -b --watch",
     "clean": "tsc -b --clean && rm -rf packages/*/dist",
-    "typecheck": "tsc -b --noEmit && pnpm -C apps/playground typecheck",
+    "typecheck": "tsc -b && pnpm -C apps/playground typecheck",
     "playground": "pnpm -C apps/playground dev",
     "build:all": "tsc -b && pnpm -C apps/playground run build",
     "docs:dev": "pnpm -C docs dev",
