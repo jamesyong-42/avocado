@@ -34,11 +34,16 @@ jobs:
       # Use `pnpm publish`, not `npm publish`, so that `workspace:*`
       # dependency specifiers get rewritten to concrete version ranges in
       # the published package.json.
+      # `pnpm -C <dir> publish <flags>` mangles the flags when passed through
+      # to `npm publish` (EUSAGE). Use `working-directory` + bare `pnpm publish`
+      # instead.
       - name: Publish @vibecook/avocado-sdk
-        run: pnpm -C packages/sdk publish --provenance --access public --no-git-checks
+        working-directory: packages/sdk
+        run: pnpm publish --provenance --access public --no-git-checks
 
       - name: Wait for @vibecook/avocado-sdk to be indexed
         run: sleep 30
 
       - name: Publish @vibecook/avocado
-        run: pnpm -C packages/cli publish --provenance --access public --no-git-checks
+        working-directory: packages/cli
+        run: pnpm publish --provenance --access public --no-git-checks
