@@ -20,7 +20,11 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          registry-url: https://registry.npmjs.org
+      # Intentionally NOT setting `registry-url` on setup-node — it writes an
+      # .npmrc with `always-auth=true` + `_authToken=${NODE_AUTH_TOKEN}`, which
+      # prevents npm from performing the OIDC exchange for Trusted Publisher
+      # and surfaces as a misleading 404 on PUT. Pass --registry inline to
+      # `pnpm publish` instead.
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -39,11 +43,11 @@ jobs:
       # instead.
       - name: Publish @vibecook/avocado-sdk
         working-directory: packages/sdk
-        run: pnpm publish --provenance --access public --no-git-checks
+        run: pnpm publish --provenance --access public --registry https://registry.npmjs.org --no-git-checks
 
       - name: Wait for @vibecook/avocado-sdk to be indexed
         run: sleep 30
 
       - name: Publish @vibecook/avocado
         working-directory: packages/cli
-        run: pnpm publish --provenance --access public --no-git-checks
+        run: pnpm publish --provenance --access public --registry https://registry.npmjs.org --no-git-checks
