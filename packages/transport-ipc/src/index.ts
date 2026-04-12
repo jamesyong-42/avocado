@@ -28,3 +28,13 @@ export type {
   PTYIPCBridgeEvents,
   IPTYIPCBridge,
 } from './ipc-bridge.js';
+
+// UDS Server
+export {
+  UDSServer,
+  createUDSServer,
+} from './uds-server.js';
+export type {
+  UDSServerConfig,
+  NamespaceHandler,
+} from './uds-server.js';

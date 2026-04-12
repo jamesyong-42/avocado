@@ -19,7 +19,8 @@
   "files": ["dist", "src"],
   "dependencies": {
     "@avocado/types": "workspace:*",
-    "@avocado/core": "workspace:*"
+    "@avocado/core": "workspace:*",
+    "@msgpack/msgpack": "^3.1.3"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
