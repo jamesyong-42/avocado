@@ -4,12 +4,12 @@
  * Inside one class we coordinate:
  *
  *   - Truffle node lifecycle (`createMeshNode`, peer events, auth)
- *   - `@avocado/core`'s `PTYSessionManager` + `TerminalServiceImpl`
- *   - `@avocado/transport-ipc`'s `UDSServer` + `PTYIPCBridge` for CLI
+ *   - `@vibecook/avocado-sdk`'s `PTYSessionManager` + `TerminalServiceImpl`
+ *   - `@vibecook/avocado-sdk/transport-ipc`'s `UDSServer` + `PTYIPCBridge` for CLI
  *     session sync (the `avo` command connects here via Unix Domain Socket)
- *   - `@avocado/transport-truffle`'s `PTYMeshBridge`, `PTYSyncStore`, and
+ *   - `@vibecook/avocado-sdk/transport-truffle`'s `PTYMeshBridge`, `PTYSyncStore`, and
  *     `RemoteSessionService` (session discovery + remote execution)
- *   - Local PTY spawning via `@avocado/node-pty`'s `LocalPTYSession.spawn`
+ *   - Local PTY spawning via `@vibecook/avocado-sdk/node-pty`'s `LocalPTYSession.spawn`
  *     using our `node-pty`-backed `PTYSpawnFunction`
  *
  * The manager extends `EventEmitter` so `ipc-handlers.ts` can subscribe to
@@ -35,6 +35,7 @@ import { homedir, hostname } from 'node:os';
 import { join } from 'node:path';
 import { app, shell } from 'electron';
 import pkg from '@xterm/headless';
+import type { Terminal as HeadlessXtermType } from '@xterm/headless';
 const { Terminal: HeadlessXterm } = pkg;
 
 import {
@@ -53,23 +54,23 @@ import {
   createTerminalStoreSync,
   type ProxySessionFactory,
   type ITerminalStoreSync,
-} from '@avocado/core';
+} from '@vibecook/avocado-sdk';
 import type {
   TerminalService,
-} from '@avocado/core';
-import { LocalPTYSession } from '@avocado/node-pty';
+} from '@vibecook/avocado-sdk';
+import { LocalPTYSession } from '@vibecook/avocado-sdk/node-pty';
 import {
   PTYMeshBridge,
   PTYSyncStore,
   RemoteSessionService,
-} from '@avocado/transport-truffle';
+} from '@vibecook/avocado-sdk/transport-truffle';
 import {
   createUDSServer,
   createPTYIPCBridge,
   type UDSServer,
   type IPTYIPCBridge,
-} from '@avocado/transport-ipc';
-import type { IPTYSession } from '@avocado/types';
+} from '@vibecook/avocado-sdk/transport-ipc';
+import type { IPTYSession } from '@vibecook/avocado-sdk/types';
 
 import type {
   IPCPtySession,
@@ -80,7 +81,7 @@ import type {
   PeerInfo,
   RemoteSessionOffer,
 } from '@shared/ipc';
-import type { RemoteSessionAnnounce } from '@avocado/types';
+import type { RemoteSessionAnnounce } from '@vibecook/avocado-sdk/types';
 
 /** Internal type alias matching the IPC shape. */
 type RemoteSessionOfferInternal = RemoteSessionOffer;
@@ -182,7 +183,7 @@ export class AvocadoManager extends EventEmitter {
   private ipcBridge: IPTYIPCBridge | undefined;
 
   // Headless xterm instances keyed by terminalId (for getScreenLines/getCursorPosition)
-  private headlessTerminals: Map<string, HeadlessXterm> = new Map();
+  private headlessTerminals: Map<string, HeadlessXtermType> = new Map();
 
   // Remote session offers from peers, keyed by deviceId
   private remoteSessionCache: Map<string, { deviceName: string; sessions: RemoteSessionAnnounce[] }> = new Map();
@@ -292,7 +293,7 @@ export class AvocadoManager extends EventEmitter {
 
       // 3. Create the core session/terminal stack and wire the proxy
       //    factory. Cast is needed because we intentionally did not import
-      //    `ProxySessionFactory` from `@avocado/core` in
+      //    `ProxySessionFactory` from `@vibecook/avocado-sdk` in
       //    `proxy-pty-session.ts` (Risk 5 — keep that file types-only).
       //    The shapes are structurally identical.
       const sessionManager = createPTYSessionManager();

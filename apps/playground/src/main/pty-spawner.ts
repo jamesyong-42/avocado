@@ -1,7 +1,7 @@
 /**
  * PTY spawner — thin wrapper around `node-pty` that adapts its default
  * export to the `PTYSpawnFunction` shape expected by
- * `@avocado/node-pty/LocalPTYSession.spawn`.
+ * `@vibecook/avocado-sdk/node-pty/LocalPTYSession.spawn`.
  *
  * `node-pty` must be rebuilt against Electron's Node ABI via
  * `@electron/rebuild` — see `postinstall` in `package.json`. Without that
@@ -9,7 +9,7 @@
  * `NODE_MODULE_VERSION` at startup.
  */
 
-import type { PTYSpawnFunction, IPty } from '@avocado/node-pty';
+import type { PTYSpawnFunction, IPty } from '@vibecook/avocado-sdk/node-pty';
 import * as nodePty from 'node-pty';
 
 /**

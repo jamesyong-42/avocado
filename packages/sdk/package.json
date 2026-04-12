@@ -1,0 +1,148 @@
+{
+  "name": "@vibecook/avocado-sdk",
+  "version": "0.1.0",
+  "description": "Terminal (PTY) session sync library — one session model, pluggable transports (local, IPC, mesh via Tailscale)",
+  "license": "MIT",
+  "author": "James Yong",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jamesyong-42/avocado.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/jamesyong-42/avocado#readme",
+  "bugs": {
+    "url": "https://github.com/jamesyong-42/avocado/issues"
+  },
+  "keywords": [
+    "pty",
+    "terminal",
+    "xterm",
+    "tailscale",
+    "mesh",
+    "session-sync",
+    "electron",
+    "react",
+    "ipc",
+    "node-pty"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./types": {
+      "source": "./src/types/index.ts",
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js"
+    },
+    "./node-pty": {
+      "source": "./src/node-pty/index.ts",
+      "types": "./dist/node-pty/index.d.ts",
+      "import": "./dist/node-pty/index.js"
+    },
+    "./transport-ipc": {
+      "source": "./src/transport-ipc/index.ts",
+      "types": "./dist/transport-ipc/index.d.ts",
+      "import": "./dist/transport-ipc/index.js"
+    },
+    "./transport-truffle": {
+      "source": "./src/transport-truffle/index.ts",
+      "types": "./dist/transport-truffle/index.d.ts",
+      "import": "./dist/transport-truffle/index.js"
+    },
+    "./react": {
+      "source": "./src/react/index.ts",
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js"
+    }
+  },
+  "imports": {
+    "#types": {
+      "source": "./src/types/index.ts",
+      "default": "./dist/types/index.js"
+    },
+    "#core": {
+      "source": "./src/core/index.ts",
+      "default": "./dist/core/index.js"
+    },
+    "#node-pty": {
+      "source": "./src/node-pty/index.ts",
+      "default": "./dist/node-pty/index.js"
+    },
+    "#transport-ipc": {
+      "source": "./src/transport-ipc/index.ts",
+      "default": "./dist/transport-ipc/index.js"
+    },
+    "#transport-truffle": {
+      "source": "./src/transport-truffle/index.ts",
+      "default": "./dist/transport-truffle/index.js"
+    },
+    "#react": {
+      "source": "./src/react/index.ts",
+      "default": "./dist/react/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@msgpack/msgpack": "^3.1.3"
+  },
+  "peerDependencies": {
+    "@vibecook/truffle": "^0.4.0",
+    "node-pty": ">=1.0.0",
+    "react": ">=18.0.0",
+    "xterm": ">=5.0.0",
+    "@xterm/addon-fit": ">=0.10.0",
+    "@xterm/addon-webgl": ">=0.18.0",
+    "@react-three/fiber": ">=9.0.0",
+    "@react-three/postprocessing": ">=3.0.0",
+    "three": ">=0.170.0",
+    "postprocessing": ">=6.37.0"
+  },
+  "peerDependenciesMeta": {
+    "@vibecook/truffle": { "optional": true },
+    "node-pty": { "optional": true },
+    "react": { "optional": true },
+    "xterm": { "optional": true },
+    "@xterm/addon-fit": { "optional": true },
+    "@xterm/addon-webgl": { "optional": true },
+    "@react-three/fiber": { "optional": true },
+    "@react-three/postprocessing": { "optional": true },
+    "three": { "optional": true },
+    "postprocessing": { "optional": true }
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/three": "^0.170.0",
+    "@vibecook/truffle": "^0.4.0",
+    "node-pty": "^1.0.0",
+    "react": "^19.0.0",
+    "typescript": "^5.5.0",
+    "xterm": "^5.0.0",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-webgl": "^0.18.0",
+    "@react-three/fiber": "^9.0.0",
+    "@react-three/postprocessing": "^3.0.0",
+    "three": "^0.170.0",
+    "postprocessing": "^6.37.0"
+  }
+}

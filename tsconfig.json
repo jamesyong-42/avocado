@@ -1,11 +1,7 @@
 {
   "files": [],
   "references": [
-    { "path": "./packages/types" },
-    { "path": "./packages/core" },
-    { "path": "./packages/node-pty" },
-    { "path": "./packages/transport-ipc" },
-    { "path": "./packages/transport-truffle" },
-    { "path": "./packages/react" }
+    { "path": "./packages/sdk" },
+    { "path": "./packages/cli" }
   ]
 }

@@ -9,8 +9,8 @@
  */
 
 import { useState, type JSX } from 'react';
-import type { PtySession, CreateSessionOptions } from '@avocado/types';
-import type { SessionSourceFilter } from '@avocado/react';
+import type { PtySession, CreateSessionOptions } from '@vibecook/avocado-sdk/types';
+import type { SessionSourceFilter } from '@vibecook/avocado-sdk/react';
 
 export interface SessionsListProps {
   sessions: PtySession[];

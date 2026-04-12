@@ -1,0 +1,44 @@
+name: Publish to npm
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Publish @vibecook/avocado-sdk and @vibecook/avocado
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for npm OIDC provenance
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build SDK
+        run: pnpm -C packages/sdk run build
+
+      - name: Build CLI
+        run: pnpm -C packages/cli run build
+
+      # Use `pnpm publish`, not `npm publish`, so that `workspace:*`
+      # dependency specifiers get rewritten to concrete version ranges in
+      # the published package.json.
+      - name: Publish @vibecook/avocado-sdk
+        run: pnpm -C packages/sdk publish --provenance --access public --no-git-checks
+
+      - name: Wait for @vibecook/avocado-sdk to be indexed
+        run: sleep 30
+
+      - name: Publish @vibecook/avocado
+        run: pnpm -C packages/cli publish --provenance --access public --no-git-checks

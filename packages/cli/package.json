@@ -1,7 +1,33 @@
 {
-  "name": "@avocado/cli",
+  "name": "@vibecook/avocado",
   "version": "0.1.0",
-  "description": "General-purpose terminal session wrapper with playground sync",
+  "description": "Avocado CLI — share terminal sessions across processes, machines, and networks",
+  "license": "MIT",
+  "author": "James Yong",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jamesyong-42/avocado.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/jamesyong-42/avocado#readme",
+  "bugs": {
+    "url": "https://github.com/jamesyong-42/avocado/issues"
+  },
+  "keywords": [
+    "cli",
+    "pty",
+    "terminal",
+    "session-sync",
+    "avocado",
+    "tailscale",
+    "mesh"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "bin": {
     "avo": "./dist/index.js"
@@ -22,10 +48,10 @@
     "postinstall": "node scripts/postinstall.mjs",
     "prepublishOnly": "npm run build"
   },
-  "files": ["dist"],
-  "dependencies": {
-    "@msgpack/msgpack": "^3.1.3"
-  },
+  "files": [
+    "dist",
+    "scripts/postinstall.mjs"
+  ],
   "peerDependencies": {
     "node-pty": ">=1.0.0"
   },
@@ -35,12 +61,11 @@
     }
   },
   "devDependencies": {
+    "@msgpack/msgpack": "^3.1.3",
     "@types/node": "^22.0.0",
+    "@vibecook/avocado-sdk": "workspace:*",
     "esbuild": "^0.20.0",
     "tsx": "^4.0.0",
     "typescript": "^5.5.0"
-  },
-  "engines": {
-    "node": ">=18"
   }
 }

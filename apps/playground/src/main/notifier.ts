@@ -8,7 +8,7 @@
  */
 
 import type { BrowserWindow } from 'electron';
-import type { IPeerNotifier } from '@avocado/transport-truffle';
+import type { IPeerNotifier } from '@vibecook/avocado-sdk/transport-truffle';
 
 export class IPCNotifier implements IPeerNotifier {
   private readonly getMainWindow: () => BrowserWindow | null;

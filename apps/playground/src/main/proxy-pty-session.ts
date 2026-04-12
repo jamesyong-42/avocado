@@ -9,23 +9,23 @@
  *
  * Dependency boundaries (Risk 5):
  *
- *  - Imports from `@avocado/types` only: `BasePTYSession`, `IPTYSession`,
+ *  - Imports from `@vibecook/avocado-sdk/types` only: `BasePTYSession`, `IPTYSession`,
  *    `IPTYTransport`, and the announce/metadata types.
- *  - Does NOT import from `@avocado/core` — the `ProxySessionFactory`
+ *  - Does NOT import from `@vibecook/avocado-sdk` — the `ProxySessionFactory`
  *    signature is duplicated inline so this file stays types-only on the
  *    package graph.
  *
  * Ported from vibe-ctl's proxy-pty-session.ts (Phase D in the plan).
  */
 
-import { BasePTYSession } from '@avocado/types';
+import { BasePTYSession } from '@vibecook/avocado-sdk/types';
 import type {
   IPTYSession,
   IPTYTransport,
   SessionSource,
   IPCSessionMetadata,
   WSSessionMetadata,
-} from '@avocado/types';
+} from '@vibecook/avocado-sdk/types';
 
 // ─── Options ───────────────────────────────────────────────────────────────
 
@@ -159,7 +159,7 @@ export class ProxyPTYSession extends BasePTYSession implements IPTYSession {
  * Factory suitable for
  * `PTYSessionManager.setProxySessionFactory(createProxyPTYSession)`.
  *
- * We avoid importing `ProxySessionFactory` from `@avocado/core` (Risk 5) —
+ * We avoid importing `ProxySessionFactory` from `@vibecook/avocado-sdk` (Risk 5) —
  * the shape is duplicated here and structural TypeScript checks the
  * compatibility at the call site when `AvocadoManager` wires it up.
  */

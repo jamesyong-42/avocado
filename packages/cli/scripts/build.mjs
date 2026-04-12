@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Build script for @avocado/cli
+ * Build script for @vibecook/avocado
  *
  * Bundles TypeScript with esbuild, marks node-pty as external (native module).
  */
@@ -15,7 +15,7 @@ const ROOT = join(__dirname, '..');
 const DIST = join(ROOT, 'dist');
 
 async function build() {
-  console.log('Building @avocado/cli...');
+  console.log('Building @vibecook/avocado...');
 
   if (existsSync(DIST)) {
     rmSync(DIST, { recursive: true });

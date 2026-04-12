@@ -1,10 +1,16 @@
-# `@avocado/cli`
+# `@vibecook/avocado`
 
 General-purpose terminal session wrapper that syncs to the avocado
 playground app over a Unix Domain Socket (macOS/Linux) or Named Pipe
 (Windows).
 
 ## Install
+
+```bash
+npm i -g @vibecook/avocado
+```
+
+Or from this monorepo:
 
 ```bash
 # From the workspace root

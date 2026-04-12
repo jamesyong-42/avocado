@@ -6,7 +6,7 @@
  */
 
 import { useState, type JSX } from 'react';
-import type { TerminalInfo, TerminalType, TerminalMode, PtySession } from '@avocado/types';
+import type { TerminalInfo, TerminalType, TerminalMode, PtySession } from '@vibecook/avocado-sdk/types';
 
 export interface TerminalsListProps {
   session: PtySession | undefined;

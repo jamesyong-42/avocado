@@ -8,7 +8,7 @@
  *   2. Subscribe to status changes so the UI reflects starting/running/
  *      error state.
  *   3. Wrap the interactive UI in `<AvocadoProvider>` with an
- *      electron-backed `TerminalBackend` so `@avocado/react`'s hooks and
+ *      electron-backed `TerminalBackend` so `@vibecook/avocado-sdk/react`'s hooks and
  *      components can talk to the main process through IPC.
  *   4. Render:
  *        - status header with the local device identity
@@ -25,8 +25,8 @@ import {
   usePTYSessions,
   useTerminals,
   useTerminalGrid,
-} from '@avocado/react';
-import type { RendererType, CRTPreset } from '@avocado/react';
+} from '@vibecook/avocado-sdk/react';
+import type { RendererType, CRTPreset } from '@vibecook/avocado-sdk/react';
 
 import { createElectronBackend } from './electron-backend';
 import { AuthGate } from './components/AuthGate';

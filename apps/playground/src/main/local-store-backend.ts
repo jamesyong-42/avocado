@@ -8,7 +8,7 @@
  * mode cascading via applyModeCallback.
  */
 
-import type { ITerminalStoreBackend, TerminalEntry } from '@avocado/core';
+import type { ITerminalStoreBackend, TerminalEntry } from '@vibecook/avocado-sdk';
 
 export class LocalStoreBackend implements ITerminalStoreBackend {
   private localDeviceId: string;

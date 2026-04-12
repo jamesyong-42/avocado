@@ -1,13 +1,13 @@
 /**
  * Adapter that wraps `window.avocado.{pty,terminal,remoteSessions}` as a `TerminalBackend`.
  *
- * `@avocado/react`'s `<AvocadoProvider>` consumes a `TerminalBackend` from
- * `@avocado/types`. Our IPC surface was designed to match that contract
+ * `@vibecook/avocado-sdk/react`'s `<AvocadoProvider>` consumes a `TerminalBackend` from
+ * `@vibecook/avocado-sdk/types`. Our IPC surface was designed to match that contract
  * 1:1 (see `@shared/ipc.ts` — `PtyAPI` and `TerminalAPI`), so the adapter
  * is essentially `{ pty, terminal, remoteSessions } = window.avocado`.
  */
 
-import type { TerminalBackend } from '@avocado/types';
+import type { TerminalBackend } from '@vibecook/avocado-sdk/types';
 
 export function createElectronBackend(): TerminalBackend {
   const { pty, terminal, remoteSessions } = window.avocado;

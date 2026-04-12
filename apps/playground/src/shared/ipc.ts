@@ -9,9 +9,9 @@
  * Design:
  *
  *  - The `pty` and `terminal` slices of `AvocadoAPI` match
- *    `@avocado/types/TerminalBackend` 1:1 so the renderer can wrap
+ *    `@vibecook/avocado-sdk/types/TerminalBackend` 1:1 so the renderer can wrap
  *    `window.avocado.{pty,terminal}` as a `TerminalBackend` and pass it to
- *    `<AvocadoProvider>` from `@avocado/react`.
+ *    `<AvocadoProvider>` from `@vibecook/avocado-sdk/react`.
  *  - The `lifecycle` and `peers` slices are playground-specific extensions
  *    for starting the truffle node and listing mesh peers.
  *
@@ -65,7 +65,7 @@ export interface PeerInfo {
 /**
  * Serializable PTY session shape sent over IPC.
  *
- * Matches `@avocado/types/TerminalBackend.pty.list()` return shape — note
+ * Matches `@vibecook/avocado-sdk/types/TerminalBackend.pty.list()` return shape — note
  * that `createdAt` is epoch milliseconds (not a `Date`) so it can cross
  * the IPC boundary safely.
  */
@@ -88,7 +88,7 @@ export interface IPCPtySession {
 /**
  * Serializable TerminalInfo sent over IPC.
  *
- * Matches `@avocado/types/TerminalInfo`.
+ * Matches `@vibecook/avocado-sdk/types/TerminalInfo`.
  */
 export interface IPCTerminalInfo {
   id: string;
@@ -119,7 +119,7 @@ export interface PeersAPI {
 }
 
 /**
- * PTY slice — matches `TerminalBackend.pty` from `@avocado/types`.
+ * PTY slice — matches `TerminalBackend.pty` from `@vibecook/avocado-sdk/types`.
  *
  * `onOutput` delivers base64-encoded data to avoid binary transfer issues
  * across the Chromium/Node IPC boundary; the renderer decodes lazily when
@@ -176,7 +176,7 @@ export interface PtyAPI {
   ): Unsubscribe;
 }
 
-/** Terminal slice — matches `TerminalBackend.terminal` from `@avocado/types`. */
+/** Terminal slice — matches `TerminalBackend.terminal` from `@vibecook/avocado-sdk/types`. */
 export interface TerminalAPI {
   createVirtual(
     sessionId: string,
