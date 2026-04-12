@@ -20,11 +20,10 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      # Intentionally NOT setting `registry-url` on setup-node — it writes an
-      # .npmrc with `always-auth=true` + `_authToken=${NODE_AUTH_TOKEN}`, which
-      # prevents npm from performing the OIDC exchange for Trusted Publisher
-      # and surfaces as a misleading 404 on PUT. Pass --registry inline to
-      # `pnpm publish` instead.
+          registry-url: https://registry.npmjs.org
+          # setup-node's `registry-url` writes an .npmrc that triggers npm's
+          # OIDC auth flow when NODE_AUTH_TOKEN is unset AND `id-token: write`
+          # is granted above. Without this, npm never attempts OIDC → ENEEDAUTH.
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
