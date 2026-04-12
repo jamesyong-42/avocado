@@ -40,9 +40,11 @@ jobs:
       # `pnpm -C <dir> publish <flags>` mangles the flags when passed through
       # to `npm publish` (EUSAGE). Use `working-directory` + bare `pnpm publish`
       # instead.
+      # SDK has no workspace:* deps, so plain npm publish works. Doing this
+      # to rule out any pnpm-vs-npm OIDC token forwarding quirks.
       - name: Publish @vibecook/avocado-sdk
         working-directory: packages/sdk
-        run: pnpm publish --provenance --access public --registry https://registry.npmjs.org --no-git-checks
+        run: npm publish --provenance --access public --registry https://registry.npmjs.org
 
       - name: Wait for @vibecook/avocado-sdk to be indexed
         run: sleep 30
