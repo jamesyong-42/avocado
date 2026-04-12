@@ -139,6 +139,13 @@ export interface PtyAPI {
     sessions?: IPCPtySession[];
     error?: string;
   }>;
+  listBySource(
+    source: string
+  ): Promise<{
+    success: boolean;
+    sessions?: IPCPtySession[];
+    error?: string;
+  }>;
   write(sessionId: string, data: string): Promise<void>;
   resize(
     sessionId: string,
@@ -163,6 +170,9 @@ export interface PtyAPI {
       source: string,
       origin: string
     ) => void
+  ): Unsubscribe;
+  onSessionFocusChanged(
+    cb: (data: { sessionId: string; focused: boolean }) => void
   ): Unsubscribe;
 }
 
@@ -192,9 +202,60 @@ export interface TerminalAPI {
   setActive(
     terminalId: string
   ): Promise<{ success: boolean; error?: string }>;
+  getScreenLines(
+    terminalId: string
+  ): Promise<{ success: boolean; lines?: string[]; error?: string }>;
+  getCursorPosition(
+    terminalId: string
+  ): Promise<{
+    success: boolean;
+    position?: { x: number; y: number };
+    error?: string;
+  }>;
+  getInfo(
+    terminalId: string
+  ): Promise<{
+    success: boolean;
+    terminal?: IPCTerminalInfo;
+    error?: string;
+  }>;
+  getSessionDimensions(
+    sessionId: string
+  ): Promise<{
+    success: boolean;
+    dimensions?: { cols: number; rows: number };
+    error?: string;
+  }>;
+  getActiveTerminal(
+    sessionId: string
+  ): Promise<{
+    success: boolean;
+    terminal?: IPCTerminalInfo;
+    error?: string;
+  }>;
+  onModeChanged(
+    cb: (data: { terminalId: string; sessionId: string; mode: string }) => void
+  ): Unsubscribe;
   onDestroyed(
     cb: (terminalId: string, sessionId: string) => void
   ): Unsubscribe;
+}
+
+/** A remote session offered by a peer device. */
+export interface RemoteSessionOffer {
+  deviceId: string;
+  deviceName: string;
+  sessionId: string;
+  command: string;
+  cwd: string;
+  cols: number;
+  rows: number;
+  pid: number;
+}
+
+export interface RemoteSessionsAPI {
+  list(): Promise<RemoteSessionOffer[]>;
+  onChanged(cb: (offers: RemoteSessionOffer[]) => void): Unsubscribe;
 }
 
 export interface AvocadoAPI {
@@ -202,6 +263,7 @@ export interface AvocadoAPI {
   peers: PeersAPI;
   pty: PtyAPI;
   terminal: TerminalAPI;
+  remoteSessions: RemoteSessionsAPI;
 }
 
 // ─── IPC channel names ─────────────────────────────────────────────────────
@@ -230,12 +292,14 @@ export const IPC = {
   PTY_LIST: 'avocado:pty:list',
   PTY_WRITE: 'avocado:pty:write',
   PTY_RESIZE: 'avocado:pty:resize',
+  PTY_LIST_BY_SOURCE: 'avocado:pty:listBySource',
   // PTY (push)
   EVT_PTY_OUTPUT: 'avocado:event:pty:output',
   EVT_PTY_EXIT: 'avocado:event:pty:exit',
   EVT_PTY_SESSION_DISCOVERED: 'avocado:event:pty:sessionDiscovered',
   EVT_PTY_SESSION_LOST: 'avocado:event:pty:sessionLost',
   EVT_PTY_SESSION_RESIZED: 'avocado:event:pty:sessionResized',
+  EVT_PTY_SESSION_FOCUS_CHANGED: 'avocado:event:pty:sessionFocusChanged',
 
   // Terminal (invoke)
   TERMINAL_CREATE_VIRTUAL: 'avocado:terminal:createVirtual',
@@ -244,8 +308,19 @@ export const IPC = {
   TERMINAL_LIST: 'avocado:terminal:list',
   TERMINAL_RESIZE: 'avocado:terminal:resize',
   TERMINAL_SET_ACTIVE: 'avocado:terminal:setActive',
+  TERMINAL_GET_SCREEN_LINES: 'avocado:terminal:getScreenLines',
+  TERMINAL_GET_CURSOR_POSITION: 'avocado:terminal:getCursorPosition',
+  TERMINAL_GET_INFO: 'avocado:terminal:getInfo',
+  TERMINAL_GET_SESSION_DIMENSIONS: 'avocado:terminal:getSessionDimensions',
+  TERMINAL_GET_ACTIVE: 'avocado:terminal:getActive',
   // Terminal (push)
   EVT_TERMINAL_DESTROYED: 'avocado:event:terminal:destroyed',
+  EVT_TERMINAL_MODE_CHANGED: 'avocado:event:terminal:modeChanged',
+
+  // Remote Sessions (invoke)
+  REMOTE_SESSIONS_LIST: 'avocado:remoteSessions:list',
+  // Remote Sessions (push)
+  EVT_REMOTE_SESSIONS_CHANGED: 'avocado:event:remoteSessions:changed',
 } as const;
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];

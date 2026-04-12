@@ -6,7 +6,7 @@
  * since it was Electron-specific. Mode syncing must be handled by the consumer.
  */
 
-import { useState, useEffect, useCallback, useRef, type JSX } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { TerminalInfo, TerminalMode, TerminalType, CreateTerminalOptions, PtySession } from '@avocado/types';
 import { useAvocadoBackend } from '../../context/AvocadoProvider';
 
@@ -28,6 +28,7 @@ export function useTerminals(): UseTerminalsResult {
   const backend = useAvocadoBackend();
   const [terminals, setTerminals] = useState<TerminalInfo[]>([]);
   const focusedTerminalRef = useRef<string | null>(null);
+  const focusDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(async () => {
     const result = await backend.terminal.list();
@@ -87,15 +88,38 @@ export function useTerminals(): UseTerminalsResult {
   }, [terminals]);
 
   const handleTerminalFocus = useCallback((terminal: TerminalInfo) => {
-    if (focusedTerminalRef.current === terminal.id) return;
+    // Guard: skip if already focused and active
+    if (focusedTerminalRef.current === terminal.id && terminal.mode === 'active') return;
+
+    // Clear any pending debounce
+    if (focusDebounceRef.current) {
+      clearTimeout(focusDebounceRef.current);
+    }
+
     focusedTerminalRef.current = terminal.id;
-    backend.terminal.setActive(terminal.id);
+
+    // Debounce 100ms to prevent rapid switching
+    focusDebounceRef.current = setTimeout(() => {
+      // Tell the backend to set this terminal as active
+      backend.terminal.setActive(terminal.id);
+
+      // Optimistic local state update: focused terminal becomes active,
+      // other terminals in the same session become passive
+      setTerminals((prev) =>
+        prev.map((t) => {
+          if (t.sessionId !== terminal.sessionId) return t;
+          if (t.id === terminal.id) {
+            return t.mode === 'active' ? t : { ...t, mode: 'active' as const };
+          }
+          return t.mode === 'passive' ? t : { ...t, mode: 'passive' as const };
+        })
+      );
+    }, 100);
   }, [backend]);
 
-  const handleTerminalBlur = useCallback((terminal: TerminalInfo) => {
-    if (focusedTerminalRef.current === terminal.id) {
-      focusedTerminalRef.current = null;
-    }
+  const handleTerminalBlur = useCallback((_terminal: TerminalInfo) => {
+    // Don't clear focus on blur — the next focus event will handle it.
+    // This matches the source behavior where blur doesn't set mode to passive.
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
@@ -104,6 +128,18 @@ export function useTerminals(): UseTerminalsResult {
     const unsubscribeTerminalDestroyed = backend.terminal.onDestroyed?.(
       (terminalId: string, _sessionId: string) => {
         setTerminals((prev) => prev.filter((t) => t.id !== terminalId));
+      }
+    );
+
+    const unsubscribeModeChanged = backend.terminal.onModeChanged?.(
+      (data: { terminalId: string; sessionId: string; mode: string }) => {
+        setTerminals((prev) =>
+          prev.map((t) =>
+            t.id === data.terminalId
+              ? { ...t, mode: data.mode as TerminalMode }
+              : t
+          )
+        );
       }
     );
 
@@ -117,6 +153,7 @@ export function useTerminals(): UseTerminalsResult {
 
     return () => {
       unsubscribeTerminalDestroyed?.();
+      unsubscribeModeChanged?.();
       unsubscribeSessionResized?.();
     };
   }, [backend]);

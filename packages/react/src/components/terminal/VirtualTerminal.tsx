@@ -163,8 +163,8 @@ export function VirtualTerminal({
 
   const handleClick = useCallback(() => {
     actions.focus();
-    if (!isActive && onFocus) onFocus();
-  }, [actions, isActive, onFocus]);
+    if (onFocus) onFocus();
+  }, [actions, onFocus]);
 
   const containerStyle: React.CSSProperties = autoResize
     ? { width: '100%', height: '100%', minHeight: '100px', backgroundColor: '#1a1b26', borderRadius: '4px', overflow: 'hidden', position: 'relative' }

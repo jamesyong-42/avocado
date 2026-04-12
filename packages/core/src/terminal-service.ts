@@ -74,6 +74,10 @@ interface VirtualTerminalInternal extends BaseTerminal {
   type: 'virtual';
 }
 
+interface HeadlessTerminalInternal extends BaseTerminal {
+  type: 'headless';
+}
+
 // ===============================================================================
 // TERMINAL SERVICE INTERFACE
 // ===============================================================================
@@ -83,6 +87,7 @@ export interface TerminalService extends EventEmitter {
   setActive(terminalId: string): void;
   applyModeFromStore(terminalId: string, mode: TerminalMode): void;
   createVirtualTerminal(sessionId: string, options: CreateTerminalOptions, canonicalSessionId?: string): string;
+  createHeadlessTerminal(sessionId: string, options: CreateTerminalOptions, canonicalSessionId?: string): string;
   getTerminal(terminalId: string): TerminalInfo | null;
   getSessionTerminals(sessionId: string): TerminalInfo[];
   getAllTerminals(): TerminalInfo[];
@@ -148,10 +153,31 @@ export class TerminalServiceImpl extends EventEmitter implements TerminalService
   }
 
   setActive(terminalId: string): void {
-    if (!this.storeSync) {
+    if (this.storeSync) {
+      // Delegate to storeSync — it handles one-active-per-session enforcement
+      // and calls back via applyModeFromStore for each changed terminal.
+      this.storeSync.setActive(terminalId);
       return;
     }
-    this.storeSync.setActive(terminalId);
+
+    // Fallback for when storeSync is not configured: cascade directly.
+    const terminal = this.terminals.get(terminalId);
+    if (!terminal) return;
+
+    const { sessionId } = terminal;
+    const sessionTerminalIds = this.sessionTerminals.get(sessionId);
+    if (!sessionTerminalIds) return;
+
+    for (const id of sessionTerminalIds) {
+      const t = this.terminals.get(id);
+      if (!t) continue;
+
+      const newMode: TerminalMode = id === terminalId ? 'active' : 'passive';
+      if (t.mode !== newMode) {
+        t.mode = newMode;
+        this.emit('terminalModeChanged', { terminalId: id, sessionId, mode: newMode });
+      }
+    }
   }
 
   applyModeFromStore(terminalId: string, mode: TerminalMode): void {
@@ -193,6 +219,54 @@ export class TerminalServiceImpl extends EventEmitter implements TerminalService
       id: terminalId,
       sessionId,
       type: 'virtual',
+      mode,
+      cols: actualCols,
+      rows: actualRows,
+      createdAt: Date.now(),
+    };
+
+    this.terminals.set(terminalId, terminal);
+    this.addToSession(sessionId, terminalId);
+
+    if (this.storeSync) {
+      const storeSessionId = canonicalSessionId ?? sessionId;
+      this.storeSync.registerTerminal(this.toTerminalInfo(terminal), storeSessionId);
+    }
+
+    if (mode === 'active') {
+      this.sessionSource.resize(sessionId, cols, rows);
+      this.syncPassiveTerminals(sessionId, cols, rows);
+    }
+
+    this.ensureOutputRouting(sessionId);
+    this.replayOutputBufferToTerminal(sessionId, terminalId);
+
+    this.emit('terminalCreated', this.toTerminalInfo(terminal));
+    return terminalId;
+  }
+
+  createHeadlessTerminal(sessionId: string, options: CreateTerminalOptions, canonicalSessionId?: string): string {
+    this.validateSession(sessionId);
+    this.validateActiveMode(sessionId, options.mode);
+
+    const terminalId = randomUUID();
+    const { cols, rows, mode } = options;
+
+    let actualCols = cols;
+    let actualRows = rows;
+
+    if (mode === 'passive') {
+      const session = this.sessionSource.getSession(sessionId);
+      if (session) {
+        actualCols = session.cols;
+        actualRows = session.rows;
+      }
+    }
+
+    const terminal: HeadlessTerminalInternal = {
+      id: terminalId,
+      sessionId,
+      type: 'headless',
       mode,
       cols: actualCols,
       rows: actualRows,

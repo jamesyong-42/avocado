@@ -91,10 +91,14 @@ export function useTerminalCore({
   const autoResizeRef = useRef(autoResize);
   const prevIsActiveRef = useRef(isActive);
   const onRenderRef = useRef(onRender);
+  const onFocusRef = useRef(onFocus);
+  const onBlurRef = useRef(onBlur);
 
   isActiveRef.current = isActive;
   autoResizeRef.current = autoResize;
   onRenderRef.current = onRender;
+  onFocusRef.current = onFocus;
+  onBlurRef.current = onBlur;
 
   const sendResizeToPty = useCallback(
     (newCols: number, newRows: number, _reason: string) => {
@@ -263,6 +267,16 @@ export function useTerminalCore({
       term.onResize(({ cols: newCols, rows: newRows }) => {
         setDimensions({ cols: newCols, rows: newRows });
         onResize?.(newCols, newRows);
+      });
+
+      // Wire xterm's native focus/blur to the callbacks. This is critical
+      // because xterm's internal textarea captures DOM focus events before
+      // they reach the container div's onFocusCapture.
+      term.textarea?.addEventListener('focus', () => {
+        onFocusRef.current?.();
+      });
+      term.textarea?.addEventListener('blur', () => {
+        onBlurRef.current?.();
       });
 
       term.focus();

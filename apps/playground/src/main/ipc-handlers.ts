@@ -17,6 +17,7 @@ import {
   type IPCTerminalInfo,
   type NodeStatusEvent,
   type PeerInfo,
+  type RemoteSessionOffer,
 } from '@shared/ipc';
 
 import type { AvocadoManager } from './avocado-manager.js';
@@ -103,6 +104,24 @@ export function registerIpcHandlers(
   );
 
   ipcMain.handle(
+    IPC.PTY_LIST_BY_SOURCE,
+    async (
+      _event,
+      source: string
+    ): Promise<{
+      success: boolean;
+      sessions?: IPCPtySession[];
+      error?: string;
+    }> => {
+      try {
+        return { success: true, sessions: manager.listSessionsBySource(source) };
+      } catch (err) {
+        return { success: false, error: toErrorMessage(err) };
+      }
+    }
+  );
+
+  ipcMain.handle(
     IPC.PTY_WRITE,
     async (_event, sessionId: string, data: string): Promise<void> => {
       manager.writeToSession(sessionId, data);
@@ -147,18 +166,17 @@ export function registerIpcHandlers(
 
   ipcMain.handle(
     IPC.TERMINAL_CREATE_HEADLESS,
-    async (): Promise<{
-      success: boolean;
-      terminalId?: string;
-      error?: string;
-    }> => {
-      // Risk 4: TerminalServiceImpl only implements createVirtualTerminal.
-      // Headless support is out of scope for playground v0.1. Fail fast so
-      // the renderer sees an explicit error instead of a silent hang.
-      return {
-        success: false,
-        error: 'headless terminals not implemented in playground v0.1',
-      };
+    async (
+      _event,
+      sessionId: string,
+      options: { cols: number; rows: number; mode: string }
+    ): Promise<{ success: boolean; terminalId?: string; error?: string }> => {
+      try {
+        const terminalId = manager.createHeadlessTerminal(sessionId, options);
+        return { success: true, terminalId };
+      } catch (err) {
+        return { success: false, error: toErrorMessage(err) };
+      }
     }
   );
 
@@ -226,6 +244,111 @@ export function registerIpcHandlers(
     }
   );
 
+  ipcMain.handle(
+    IPC.TERMINAL_GET_SCREEN_LINES,
+    async (
+      _event,
+      terminalId: string
+    ): Promise<{ success: boolean; lines?: string[]; error?: string }> => {
+      try {
+        const lines = manager.getScreenLines(terminalId);
+        return { success: true, lines };
+      } catch (err) {
+        return { success: false, error: toErrorMessage(err) };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    IPC.TERMINAL_GET_CURSOR_POSITION,
+    async (
+      _event,
+      terminalId: string
+    ): Promise<{
+      success: boolean;
+      position?: { x: number; y: number };
+      error?: string;
+    }> => {
+      try {
+        const position = manager.getCursorPosition(terminalId);
+        return position
+          ? { success: true, position }
+          : { success: false, error: 'terminal not found' };
+      } catch (err) {
+        return { success: false, error: toErrorMessage(err) };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    IPC.TERMINAL_GET_INFO,
+    async (
+      _event,
+      terminalId: string
+    ): Promise<{
+      success: boolean;
+      terminal?: IPCTerminalInfo;
+      error?: string;
+    }> => {
+      try {
+        const terminal = manager.getTerminalInfo(terminalId);
+        return terminal
+          ? { success: true, terminal }
+          : { success: false, error: 'terminal not found' };
+      } catch (err) {
+        return { success: false, error: toErrorMessage(err) };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    IPC.TERMINAL_GET_SESSION_DIMENSIONS,
+    async (
+      _event,
+      sessionId: string
+    ): Promise<{
+      success: boolean;
+      dimensions?: { cols: number; rows: number };
+      error?: string;
+    }> => {
+      try {
+        const dimensions = manager.getTerminalSessionDimensions(sessionId);
+        return dimensions
+          ? { success: true, dimensions }
+          : { success: false, error: 'session not found' };
+      } catch (err) {
+        return { success: false, error: toErrorMessage(err) };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    IPC.TERMINAL_GET_ACTIVE,
+    async (
+      _event,
+      sessionId: string
+    ): Promise<{
+      success: boolean;
+      terminal?: IPCTerminalInfo;
+      error?: string;
+    }> => {
+      try {
+        const terminal = manager.getActiveTerminalForSession(sessionId);
+        return terminal
+          ? { success: true, terminal }
+          : { success: false, error: 'no active terminal' };
+      } catch (err) {
+        return { success: false, error: toErrorMessage(err) };
+      }
+    }
+  );
+
+  // Remote Sessions
+  ipcMain.handle(
+    IPC.REMOTE_SESSIONS_LIST,
+    async (): Promise<RemoteSessionOffer[]> => manager.listRemoteSessions()
+  );
+
   // ─── Push events (main → renderer) ────────────────────────────────────────
 
   const send = <T extends unknown[]>(channel: string, ...args: T): void => {
@@ -276,9 +399,18 @@ export function registerIpcHandlers(
       data.origin
     );
   });
+  manager.on('ptySessionFocusChanged', (data) => {
+    send(IPC.EVT_PTY_SESSION_FOCUS_CHANGED, data);
+  });
 
+  manager.on('terminalModeChanged', (data) => {
+    send(IPC.EVT_TERMINAL_MODE_CHANGED, data);
+  });
   manager.on('terminalDestroyed', (terminalId, sessionId) => {
     send(IPC.EVT_TERMINAL_DESTROYED, terminalId, sessionId);
+  });
+  manager.on('remoteSessionsChanged', (offers) => {
+    send(IPC.EVT_REMOTE_SESSIONS_CHANGED, offers);
   });
 }
 

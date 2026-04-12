@@ -13,25 +13,27 @@
  *   4. Render:
  *        - status header with the local device identity
  *        - peers panel (mesh discovery)
- *        - sessions panel (local + remote PTY sessions)
- *        - terminal host (the selected session's VirtualTerminal)
- *        - a "Spawn shell" button that creates a local PTY + virtual
- *          terminal for it
+ *        - sessions panel with create/destroy/resize/filter
+ *        - terminals panel with type/mode selection and grid toggle
+ *        - terminal grid (up to 3x3) with renderer/CRT controls
  */
 
 import { useEffect, useRef, useState, type JSX } from 'react';
 import {
   AvocadoProvider,
-  VirtualTerminal,
+  TerminalGrid,
   usePTYSessions,
   useTerminals,
+  useTerminalGrid,
 } from '@avocado/react';
-import type { PtySession, TerminalInfo } from '@avocado/types';
+import type { TerminalInfo } from '@avocado/types';
+import type { RendererType, CRTPreset } from '@avocado/react';
 
 import { createElectronBackend } from './electron-backend';
 import { AuthGate } from './components/AuthGate';
 import { PeersList } from './components/PeersList';
 import { SessionsList } from './components/SessionsList';
+import { TerminalsList } from './components/TerminalsList';
 import type { NodeStatus, NodeStatusEvent } from '@shared/ipc';
 
 // Single backend instance so `<AvocadoProvider>` doesn't recreate the
@@ -52,7 +54,7 @@ export function App(): JSX.Element {
   // Avoid re-invoking start on StrictMode double-mount.
   const startedRef = useRef(false);
 
-  // ─── Lifecycle ─────────────────────────────────────────────────────────
+  // ─── Lifecycle ─────────��───────────────────────────────���───────────────
   useEffect(() => {
     const unsubStatus = window.avocado.lifecycle.onStatusChanged((event) => {
       setStatus(event.status);
@@ -160,24 +162,55 @@ function Header({
   );
 }
 
-// ─── Body ──────────────────────────────────────────────────────────────────
+// ─── Body ───────────────────────────────────────────────��──────────────────
 
 /**
  * Body component — only mounted when the truffle node is running, which
  * guarantees `backend.pty.list()` and friends will resolve.
  */
 function PlaygroundBody(): JSX.Element {
-  const { sessions, selectedSessionId, selectSession, createSession } =
-    usePTYSessions();
-  const { terminals, createTerminal } = useTerminals();
+  const {
+    sessions,
+    filteredSessions,
+    selectedSessionId,
+    selectedSession,
+    sourceFilter,
+    setSourceFilter,
+    selectSession,
+    createSession,
+    destroySession,
+    resizeSession,
+  } = usePTYSessions();
 
-  // Track which sessions already have a virtual terminal wired up. The
-  // hook state is the source of truth; this ref just prevents double-creates
-  // in the same render before `terminals` updates.
+  const {
+    terminals,
+    createTerminal,
+    destroyTerminal,
+    handleTerminalFocus,
+    handleTerminalBlur,
+  } = useTerminals();
+
+  const {
+    selectedIds,
+    settings,
+    gridLayout,
+    getSelectedTerminals,
+    toggleSelection,
+    addToGrid,
+    clearSelection,
+    getSettings,
+    updateSettings,
+    maxTerminals,
+  } = useTerminalGrid();
+
+  const [renderer, setRenderer] = useState<RendererType>('default');
+  const [crtPreset, setCrtPreset] = useState<CRTPreset>('classic');
+
+  // Track which sessions already have a virtual terminal wired up.
   const pendingTerminalRef = useRef<Set<string>>(new Set());
 
   // Auto-create a virtual terminal for any session that doesn't have one
-  // yet. `terminals` comes from `useTerminals`, which refreshes on changes.
+  // yet, and add it to the grid.
   useEffect(() => {
     for (const session of sessions) {
       const hasTerminal = terminals.some(
@@ -190,33 +223,15 @@ function PlaygroundBody(): JSX.Element {
         'virtual',
         { cols: DEFAULT_COLS, rows: DEFAULT_ROWS, mode: 'active' },
         session
-      ).finally(() => {
+      ).then((terminalId) => {
+        if (terminalId) addToGrid(terminalId);
+      }).finally(() => {
         pendingTerminalRef.current.delete(session.id);
       });
     }
-  }, [sessions, terminals, createTerminal]);
+  }, [sessions, terminals, createTerminal, addToGrid]);
 
-  const handleSpawn = async (): Promise<void> => {
-    // Use process.env.HOME-ish fallback — the main process spawn function
-    // already defaults to `process.cwd()` if we pass an empty string, but
-    // the PTY session type requires a non-empty cwd.
-    const cwd = '/';
-    const sessionId = await createSession({
-      cwd,
-      cols: DEFAULT_COLS,
-      rows: DEFAULT_ROWS,
-    });
-    if (sessionId) {
-      selectSession(sessionId);
-    }
-  };
-
-  const selectedSession: PtySession | undefined = selectedSessionId
-    ? sessions.find((s) => s.id === selectedSessionId)
-    : undefined;
-  const selectedTerminal: TerminalInfo | undefined = selectedSession
-    ? terminals.find((t) => t.sessionId === selectedSession.id)
-    : undefined;
+  const selectedTerminals = getSelectedTerminals(terminals);
 
   return (
     <div className="panels">
@@ -224,37 +239,61 @@ function PlaygroundBody(): JSX.Element {
         <PeersList />
         <SessionsList
           sessions={sessions}
+          filteredSessions={filteredSessions}
           selectedSessionId={selectedSessionId}
+          sourceFilter={sourceFilter}
+          onSourceFilterChange={setSourceFilter}
           onSelect={selectSession}
+          onCreate={createSession}
+          onDestroy={destroySession}
+          onResize={resizeSession}
+        />
+        <TerminalsList
+          session={selectedSession}
+          terminals={terminals}
+          selectedIds={selectedIds}
+          onToggleGrid={toggleSelection}
+          onCreate={async (sessionId, type, options, session) => {
+            const terminalId = await createTerminal(sessionId, type, options, session);
+            if (terminalId) addToGrid(terminalId);
+            return terminalId;
+          }}
+          onDestroy={destroyTerminal}
+          maxTerminals={maxTerminals}
         />
       </div>
       <div className="main-pane">
-        <div className="toolbar">
-          <button type="button" onClick={() => void handleSpawn()}>
-            Spawn shell
-          </button>
-        </div>
-        <div className="terminal-host">
-          {selectedSession && selectedTerminal ? (
-            <VirtualTerminal
-              sessionId={selectedSession.id}
-              terminalId={selectedTerminal.id}
-              cols={DEFAULT_COLS}
-              rows={DEFAULT_ROWS}
-              isActive
-              autoResize
-              renderer="default"
-            />
-          ) : (
+        {selectedTerminals.length === 0 ? (
+          <div className="terminal-host">
             <div className="empty-state">
               <em>
                 {sessions.length === 0
-                  ? 'Click "Spawn shell" to start a local PTY.'
-                  : 'Select a session to attach a terminal.'}
+                  ? 'No sessions yet — create one in the sidebar.'
+                  : terminals.length === 0
+                    ? 'Creating terminal...'
+                    : 'Select terminals in the sidebar to add them to the grid.'}
               </em>
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="terminal-host">
+            <TerminalGrid
+              terminals={selectedTerminals}
+              sessions={sessions}
+              gridLayout={gridLayout}
+              getSettings={getSettings}
+              onSettingsChange={(terminalId, updates) => updateSettings(terminalId, updates)}
+              onRemoveFromGrid={toggleSelection}
+              onTerminalFocus={handleTerminalFocus}
+              onTerminalBlur={handleTerminalBlur}
+              onClearAll={clearSelection}
+              renderer={renderer}
+              crtPreset={crtPreset}
+              onRendererChange={setRenderer}
+              onCrtPresetChange={setCrtPreset}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

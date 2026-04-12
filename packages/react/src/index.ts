@@ -56,3 +56,6 @@ export type { UseTerminalGridResult } from './hooks/terminal/useTerminalGrid';
 
 export { useTerminalAPI } from './hooks/terminal/useTerminalAPI';
 export type { UseTerminalAPIResult } from './hooks/terminal/useTerminalAPI';
+
+export { useRemoteSessions } from './hooks/terminal/useRemoteSessions';
+export type { UseRemoteSessionsResult, RemoteSessionOffer } from './hooks/terminal/useRemoteSessions';

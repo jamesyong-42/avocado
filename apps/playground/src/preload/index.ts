@@ -19,6 +19,7 @@ import {
   type IPCTerminalInfo,
   type NodeStatusEvent,
   type PeerInfo,
+  type RemoteSessionOffer,
   type Unsubscribe,
 } from '@shared/ipc';
 
@@ -88,6 +89,11 @@ const api: AvocadoAPI = {
       rows
     ): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke(IPC.PTY_RESIZE, sessionId, cols, rows),
+    listBySource: (source): Promise<{
+      success: boolean;
+      sessions?: IPCPtySession[];
+      error?: string;
+    }> => ipcRenderer.invoke(IPC.PTY_LIST_BY_SOURCE, source),
     onOutput: (cb): Unsubscribe =>
       subscribe<[string, string, string]>(IPC.EVT_PTY_OUTPUT, cb),
     onExit: (cb): Unsubscribe =>
@@ -105,6 +111,11 @@ const api: AvocadoAPI = {
     onSessionResized: (cb): Unsubscribe =>
       subscribe<[string, number, number, string, string]>(
         IPC.EVT_PTY_SESSION_RESIZED,
+        cb
+      ),
+    onSessionFocusChanged: (cb): Unsubscribe =>
+      subscribe<[{ sessionId: string; focused: boolean }]>(
+        IPC.EVT_PTY_SESSION_FOCUS_CHANGED,
         cb
       ),
   },
@@ -142,8 +153,46 @@ const api: AvocadoAPI = {
       ipcRenderer.invoke(IPC.TERMINAL_RESIZE, terminalId, cols, rows),
     setActive: (terminalId): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke(IPC.TERMINAL_SET_ACTIVE, terminalId),
+    getScreenLines: (terminalId): Promise<{
+      success: boolean;
+      lines?: string[];
+      error?: string;
+    }> => ipcRenderer.invoke(IPC.TERMINAL_GET_SCREEN_LINES, terminalId),
+    getCursorPosition: (terminalId): Promise<{
+      success: boolean;
+      position?: { x: number; y: number };
+      error?: string;
+    }> => ipcRenderer.invoke(IPC.TERMINAL_GET_CURSOR_POSITION, terminalId),
+    getInfo: (terminalId): Promise<{
+      success: boolean;
+      terminal?: IPCTerminalInfo;
+      error?: string;
+    }> => ipcRenderer.invoke(IPC.TERMINAL_GET_INFO, terminalId),
+    getSessionDimensions: (sessionId): Promise<{
+      success: boolean;
+      dimensions?: { cols: number; rows: number };
+      error?: string;
+    }> => ipcRenderer.invoke(IPC.TERMINAL_GET_SESSION_DIMENSIONS, sessionId),
+    getActiveTerminal: (sessionId): Promise<{
+      success: boolean;
+      terminal?: IPCTerminalInfo;
+      error?: string;
+    }> => ipcRenderer.invoke(IPC.TERMINAL_GET_ACTIVE, sessionId),
+    onModeChanged: (cb): Unsubscribe =>
+      subscribe<[{ terminalId: string; sessionId: string; mode: string }]>(
+        IPC.EVT_TERMINAL_MODE_CHANGED,
+        cb
+      ),
     onDestroyed: (cb): Unsubscribe =>
       subscribe<[string, string]>(IPC.EVT_TERMINAL_DESTROYED, cb),
+  },
+
+  // ─── Remote Sessions ──────────────────────────────────────────────────
+  remoteSessions: {
+    list: (): Promise<RemoteSessionOffer[]> =>
+      ipcRenderer.invoke(IPC.REMOTE_SESSIONS_LIST),
+    onChanged: (cb): Unsubscribe =>
+      subscribe<[RemoteSessionOffer[]]>(IPC.EVT_REMOTE_SESSIONS_CHANGED, cb),
   },
 };
 

@@ -845,6 +845,15 @@ export class AvocadoManager extends EventEmitter {
     this.headlessTerminals.clear();
     this.remoteSessionCache.clear();
 
+    try {
+      if (this.terminalStoreSync) {
+        this.terminalStoreSync.dispose();
+      }
+    } catch {
+      /* best effort */
+    }
+
+    this.terminalStoreSync = undefined;
     this.ipcBridge = undefined;
     this.udsServer = undefined;
     this.remoteSessionService = undefined;
