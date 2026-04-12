@@ -21,7 +21,75 @@
 import { PTYHost } from './pty-host.js';
 import { createSyncClient } from './sync-client.js';
 import { Router } from './router.js';
-import { DEFAULT_COMMAND } from './config.js';
+import { DEFAULT_COMMAND, CLI_VERSION } from './config.js';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BANNER
+// ═══════════════════════════════════════════════════════════════════════════
+
+const DIM = '\x1b[2m';
+const RESET = '\x1b[0m';
+const GREEN = '\x1b[32m';
+const YELLOW = '\x1b[33m';
+const BOLD = '\x1b[1m';
+const CYAN = '\x1b[36m';
+
+function printBanner(opts: {
+  command: string;
+  sessionId: string;
+  connected: boolean;
+  noSync: boolean;
+  cols: number;
+}): void {
+  const W = Math.min(Math.max(opts.cols, 50), 72);
+  const e = DIM; // edge color
+  const r = RESET;
+  const h = '\u2500'; // ─
+  const v = '\u2502'; // │
+
+  const pad = (s: string, width: number) => {
+    const visible = s.replace(/\x1b\[[0-9;]*m/g, '').length;
+    return s + ' '.repeat(Math.max(0, width - visible));
+  };
+
+  const line = (content: string) =>
+    `${e}${v}${r}  ${pad(content, W - 4)}${e}${v}${r}`;
+  const empty = line('');
+
+  const label = `${r}${BOLD}avocado${r} ${DIM}v${CLI_VERSION}${r}`;
+  const labelLen = `avocado v${CLI_VERSION}`.length;
+  const top = `${e}\u256d${h} ${label} ${e}${h.repeat(Math.max(0, W - labelLen - 5))}\u256e${r}`;
+  const bot = `${e}\u2570${h.repeat(W - 1)}\u256f${r}`;
+
+  // Sync status
+  let syncLine: string;
+  if (opts.noSync) {
+    syncLine = `${DIM}sync disabled${r}`;
+  } else if (opts.connected) {
+    syncLine = `${GREEN}\u25cf${r} ${GREEN}connected${r} to playground`;
+  } else {
+    syncLine = `${YELLOW}\u25cb${r} ${YELLOW}waiting${r} for playground`;
+  }
+
+  const shortId = opts.sessionId.slice(0, 16);
+  const lines = [
+    top,
+    empty,
+    line(`${CYAN}\u2588\u2580\u2588 \u2588  \u2588 \u2588\u2580\u2588${r}`),
+    line(`${CYAN}\u2588\u2588\u2588 \u2588\u2580\u2588 \u2588 \u2588${r}`),
+    line(`${CYAN}\u2588 \u2588  \u2580  \u2580\u2580\u2580${r}`),
+    empty,
+    line(`${DIM}terminal session wrapper${r}`),
+    empty,
+    line(`${BOLD}cmd${r}  ${opts.command}`),
+    line(`${BOLD}id${r}   ${DIM}${shortId}${r}`),
+    line(`${BOLD}sync${r} ${syncLine}`),
+    empty,
+    bot,
+  ];
+
+  process.stdout.write(lines.join('\n') + '\n');
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CLI ARGUMENT PARSING
@@ -219,6 +287,15 @@ async function main(): Promise<void> {
 
   // Start
   try {
+    // Show banner so user knows they're inside avo
+    printBanner({
+      command: parsed.command,
+      sessionId: syncClient.getSessionId(),
+      connected: syncClient.isConnected(),
+      noSync: parsed.noSync,
+      cols,
+    });
+
     ptyHost.spawn();
     router.start();
   } catch (err) {
