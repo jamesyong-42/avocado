@@ -1,6 +1,6 @@
 {
   "name": "@vibecook/avocado-sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Terminal (PTY) session sync library — one session model, pluggable transports (local, IPC, mesh via Tailscale)",
   "license": "MIT",
   "author": "James Yong",
@@ -118,16 +118,36 @@
     "postprocessing": ">=6.37.0"
   },
   "peerDependenciesMeta": {
-    "@vibecook/truffle": { "optional": true },
-    "node-pty": { "optional": true },
-    "react": { "optional": true },
-    "xterm": { "optional": true },
-    "@xterm/addon-fit": { "optional": true },
-    "@xterm/addon-webgl": { "optional": true },
-    "@react-three/fiber": { "optional": true },
-    "@react-three/postprocessing": { "optional": true },
-    "three": { "optional": true },
-    "postprocessing": { "optional": true }
+    "@vibecook/truffle": {
+      "optional": true
+    },
+    "node-pty": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "xterm": {
+      "optional": true
+    },
+    "@xterm/addon-fit": {
+      "optional": true
+    },
+    "@xterm/addon-webgl": {
+      "optional": true
+    },
+    "@react-three/fiber": {
+      "optional": true
+    },
+    "@react-three/postprocessing": {
+      "optional": true
+    },
+    "three": {
+      "optional": true
+    },
+    "postprocessing": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
