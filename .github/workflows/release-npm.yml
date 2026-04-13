@@ -25,6 +25,17 @@ jobs:
           # OIDC auth flow when NODE_AUTH_TOKEN is unset AND `id-token: write`
           # is granted above. Without this, npm never attempts OIDC → ENEEDAUTH.
 
+      # npm trusted publishing currently requires npm CLI 11.5.1+.
+      # Node 22 on GitHub-hosted runners currently ships npm 10.x, so upgrade it.
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@^11.5.1
+
+      - name: Print publish toolchain
+        run: |
+          node --version
+          npm --version
+          pnpm --version
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -34,14 +45,14 @@ jobs:
       - name: Build CLI
         run: pnpm -C packages/cli run build
 
-      # Use `pnpm publish`, not `npm publish`, so that `workspace:*`
-      # dependency specifiers get rewritten to concrete version ranges in
-      # the published package.json.
-      # `pnpm -C <dir> publish <flags>` mangles the flags when passed through
-      # to `npm publish` (EUSAGE). Use `working-directory` + bare `pnpm publish`
-      # instead.
-      # SDK has no workspace:* deps, so plain npm publish works. Doing this
-      # to rule out any pnpm-vs-npm OIDC token forwarding quirks.
+      - name: Print OIDC claims for npm
+        run: |
+          response="$(curl -sSfL -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=npm:registry.npmjs.org")"
+          token="$(printf '%s' "$response" | jq -r '.value')"
+          payload="$(printf '%s' "$token" | cut -d '.' -f2 | tr '_-' '/+' | base64 -d 2>/dev/null)"
+          printf '%s' "$payload" | jq '{aud, sub, repository, repository_owner, ref, sha, job_workflow_ref, workflow_ref, environment}'
+
+      # SDK has no workspace:* deps, so plain npm publish works.
       - name: Publish @vibecook/avocado-sdk
         working-directory: packages/sdk
         run: npm publish --provenance --access public --registry https://registry.npmjs.org
@@ -49,6 +60,12 @@ jobs:
       - name: Wait for @vibecook/avocado-sdk to be indexed
         run: sleep 30
 
+      # Pack with pnpm so workspace:* references are rewritten, then publish
+      # the generated tarball with npm so authentication stays on npm's OIDC path.
+      - name: Pack @vibecook/avocado
+        working-directory: packages/cli
+        run: pnpm pack --pack-destination .
+
       - name: Publish @vibecook/avocado
         working-directory: packages/cli
-        run: pnpm publish --provenance --access public --registry https://registry.npmjs.org --no-git-checks
+        run: npm publish vibecook-avocado-*.tgz --provenance --access public --registry https://registry.npmjs.org
