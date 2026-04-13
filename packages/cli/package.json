@@ -1,6 +1,6 @@
 {
   "name": "@vibecook/avocado",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Avocado CLI — share terminal sessions across processes, machines, and networks",
   "license": "MIT",
   "author": "James Yong",
