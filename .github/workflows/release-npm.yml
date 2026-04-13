@@ -40,13 +40,6 @@ jobs:
       - name: Build CLI
         run: pnpm -C packages/cli run build
 
-      - name: Print OIDC claims for npm
-        run: |
-          response="$(curl -sSfL -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=npm:registry.npmjs.org")"
-          token="$(printf '%s' "$response" | jq -r '.value')"
-          payload="$(printf '%s' "$token" | cut -d '.' -f2 | tr '_-' '/+' | base64 -d 2>/dev/null)"
-          printf '%s' "$payload" | jq '{aud, sub, repository, repository_owner, ref, sha, job_workflow_ref, workflow_ref, environment}'
-
       # SDK has no workspace:* deps, so plain npm publish works.
       - name: Publish @vibecook/avocado-sdk
         working-directory: packages/sdk
