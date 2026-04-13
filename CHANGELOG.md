@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.1](https://github.com/jamesyong-42/avocado/compare/avocado-v0.2.0...avocado-v0.2.1) (2026-04-13)
+
+
+### Bug Fixes
+
+* **ci:** align npm publish with trusted publishing requirements ([2b99e27](https://github.com/jamesyong-42/avocado/commit/2b99e2777fbfef894ded0ddd3431000a90ef5c8f))
+* **ci:** drop registry-url from setup-node, pass --registry inline ([4baf933](https://github.com/jamesyong-42/avocado/commit/4baf9331cf33bbda0c6c270af51535ec39483d1b))
+* **ci:** restore registry-url on setup-node (needed for OIDC) ([d153b79](https://github.com/jamesyong-42/avocado/commit/d153b7962f2eaff64f4ae9bfc1765d7d26dfe64c))
+* **ci:** use node 24 for npm trusted publishing ([17e5834](https://github.com/jamesyong-42/avocado/commit/17e5834ecd39ef75216a3a50ffbd02621c046329))
+* **ci:** use working-directory for pnpm publish instead of -C ([8156934](https://github.com/jamesyong-42/avocado/commit/8156934ca64f81e599217a1581250e44668d805e))
+
 ## [0.2.0](https://github.com/jamesyong-42/avocado/compare/avocado-v0.1.0...avocado-v0.2.0) (2026-04-12)
 
 
