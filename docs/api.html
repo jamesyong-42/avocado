@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API Reference — Avocado</title>
+  <meta name="description" content="API reference for @vibecook/avocado-sdk and the avo CLI — core, types, node-pty, IPC, truffle mesh, and React." />
+  <meta name="theme-color" content="#0a0c10" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%231a2e14'/%3E%3Ccircle cx='16' cy='16' r='9' fill='%238fd14f'/%3E%3Ccircle cx='13' cy='13' r='2.5' fill='%230a0c10' opacity='.35'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0c10;
+      --bg-elevated: #0f1218;
+      --bg-card: #13171f;
+      --bg-card-hover: #171c26;
+      --bg-code: #0c0f14;
+      --bg-sidebar: #0c0e13;
+      --border: #232833;
+      --border-strong: #2e3544;
+      --text: #e8eaef;
+      --text-secondary: #a0a8b8;
+      --text-muted: #6b7385;
+      --accent: #8fd14f;
+      --accent-bright: #a8e06a;
+      --accent-dim: #5fa32e;
+      --accent-soft: rgba(143, 209, 79, 0.12);
+      --accent-glow: rgba(143, 209, 79, 0.22);
+      --accent-border: rgba(143, 209, 79, 0.28);
+      --purple: #b89cff;
+      --amber: #e8b84a;
+      --cyan: #5ec8d8;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --radius-xs: 6px;
+      --font: "Instrument Sans", system-ui, -apple-system, sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+      --nav-h: 64px;
+      --sidebar-w: 260px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: calc(var(--nav-h) + 24px); }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      font-size: 15.5px;
+      line-height: 1.65;
+      color: var(--text);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent-bright); text-decoration: none; transition: color .15s; }
+    a:hover { color: #c4f08a; }
+    code, kbd, pre { font-family: var(--mono); }
+    ::selection { background: var(--accent-glow); color: #fff; }
+
+    .bg-glow {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background:
+        radial-gradient(ellipse 40% 30% at 0% 0%, rgba(143,209,79,0.07), transparent 55%),
+        radial-gradient(ellipse 30% 25% at 100% 0%, rgba(184,156,255,0.04), transparent 50%);
+    }
+
+    /* ── Nav ── */
+    .nav {
+      position: sticky; top: 0; z-index: 100;
+      height: var(--nav-h);
+      background: rgba(10, 12, 16, 0.85);
+      backdrop-filter: blur(16px) saturate(1.4);
+      -webkit-backdrop-filter: blur(16px) saturate(1.4);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      height: 100%; max-width: 1400px; margin: 0 auto;
+      padding: 0 24px;
+      display: flex; align-items: center; justify-content: space-between; gap: 20px;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 10px;
+      color: var(--text); font-weight: 600; font-size: 15px; letter-spacing: -0.02em;
+      flex-shrink: 0;
+    }
+    .brand:hover { color: var(--text); }
+    .brand-mark {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: linear-gradient(145deg, #1f3a18, #0f1a0c);
+      border: 1px solid var(--accent-border);
+      display: grid; place-items: center;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+    .brand-sep {
+      width: 1px; height: 18px; background: var(--border-strong); margin: 0 4px;
+    }
+    .brand-page {
+      font-size: 13px; font-weight: 500; color: var(--text-muted);
+    }
+    .nav-links {
+      display: flex; align-items: center; gap: 4px;
+      list-style: none; margin: 0; padding: 0;
+    }
+    .nav-links a {
+      color: var(--text-secondary);
+      font-size: 14px; font-weight: 500;
+      padding: 8px 12px; border-radius: var(--radius-xs);
+    }
+    .nav-links a:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+    .nav-links a.active { color: var(--accent-bright); }
+    .nav-cta {
+      display: inline-flex !important;
+      padding: 8px 14px !important;
+      background: var(--accent-soft) !important;
+      border: 1px solid var(--accent-border);
+      color: var(--accent-bright) !important;
+      font-weight: 600 !important;
+    }
+    .nav-cta:hover { background: rgba(143,209,79,0.2) !important; color: #c4f08a !important; }
+    .sidebar-toggle {
+      display: none; background: none; border: 1px solid var(--border);
+      color: var(--text); width: 40px; height: 40px; border-radius: var(--radius-xs);
+      cursor: pointer; align-items: center; justify-content: center;
+    }
+
+    /* ── Layout ── */
+    .layout {
+      position: relative; z-index: 1;
+      display: grid;
+      grid-template-columns: var(--sidebar-w) 1fr;
+      max-width: 1400px; margin: 0 auto;
+      min-height: calc(100vh - var(--nav-h));
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      position: sticky; top: var(--nav-h);
+      height: calc(100vh - var(--nav-h));
+      overflow-y: auto;
+      padding: 28px 16px 48px 24px;
+      border-right: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--bg-sidebar) 0%, var(--bg) 100%);
+    }
+    .sidebar::-webkit-scrollbar { width: 6px; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .side-group { margin-bottom: 28px; }
+    .side-group-title {
+      font-family: var(--mono); font-size: 10px; font-weight: 600;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--text-muted); margin: 0 0 10px 8px;
+    }
+    .side-link {
+      display: block;
+      padding: 7px 10px;
+      border-radius: var(--radius-xs);
+      font-size: 13.5px; font-weight: 500;
+      color: var(--text-secondary);
+      transition: color .12s, background .12s;
+      border-left: 2px solid transparent;
+      margin-left: 0;
+    }
+    .side-link:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+    .side-link.active {
+      color: var(--accent-bright);
+      background: var(--accent-soft);
+      border-left-color: var(--accent);
+    }
+    .side-link .pkg {
+      display: block;
+      font-family: var(--mono); font-size: 10.5px; font-weight: 400;
+      color: var(--text-muted); margin-top: 1px;
+    }
+    .side-link.active .pkg { color: rgba(168, 224, 106, 0.55); }
+
+    /* ── Main ── */
+    .main {
+      padding: 40px 48px 100px;
+      min-width: 0;
+    }
+    .page-header { margin-bottom: 48px; }
+    .page-header .eyebrow {
+      font-family: var(--mono); font-size: 11px; font-weight: 500;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 12px;
+    }
+    .page-header h1 {
+      margin: 0 0 12px;
+      font-size: clamp(1.85rem, 3vw, 2.4rem);
+      font-weight: 700; letter-spacing: -0.03em; line-height: 1.15;
+    }
+    .page-header p {
+      margin: 0; max-width: 560px;
+      color: var(--text-secondary); font-size: 1.05rem;
+    }
+
+    /* ── Doc sections ── */
+    .doc-section {
+      margin-bottom: 72px;
+      scroll-margin-top: calc(var(--nav-h) + 24px);
+    }
+    .doc-section > h2 {
+      margin: 0 0 8px;
+      font-size: 1.5rem; font-weight: 700; letter-spacing: -0.025em;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    }
+    .doc-section > h2 .path {
+      font-family: var(--mono); font-size: 12px; font-weight: 500;
+      color: var(--accent-bright);
+      background: var(--accent-soft);
+      border: 1px solid var(--accent-border);
+      padding: 4px 10px; border-radius: 999px;
+    }
+    .doc-section > .lead {
+      margin: 16px 0 28px;
+      color: var(--text-secondary); max-width: 640px;
+    }
+    h3 {
+      margin: 36px 0 12px;
+      font-size: 1.1rem; font-weight: 600; letter-spacing: -0.015em;
+    }
+    h3:first-of-type { margin-top: 0; }
+    h4 {
+      margin: 24px 0 10px;
+      font-size: 0.95rem; font-weight: 600; color: var(--text);
+    }
+    p { color: var(--text-secondary); margin: 0 0 14px; }
+    p:last-child { margin-bottom: 0; }
+    ul, ol { color: var(--text-secondary); margin: 0 0 16px; padding-left: 1.25rem; }
+    li { margin-bottom: 6px; }
+    li code, p code, td code, th code {
+      font-size: 12.5px; color: var(--accent-bright);
+      background: var(--accent-soft); padding: 2px 6px; border-radius: 4px;
+    }
+    strong { color: var(--text); font-weight: 600; }
+
+    /* ── API symbol cards ── */
+    .symbol {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    .symbol-head {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.15);
+    }
+    .symbol-kind {
+      font-family: var(--mono); font-size: 10px; font-weight: 600;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 3px 7px; border-radius: 4px;
+    }
+    .kind-fn { background: rgba(94,200,216,0.12); color: var(--cyan); }
+    .kind-class { background: rgba(184,156,255,0.12); color: var(--purple); }
+    .kind-type { background: rgba(232,184,74,0.12); color: var(--amber); }
+    .kind-const { background: var(--accent-soft); color: var(--accent-bright); }
+    .kind-comp { background: rgba(94,200,216,0.12); color: var(--cyan); }
+    .kind-hook { background: rgba(184,156,255,0.12); color: var(--purple); }
+    .symbol-name {
+      font-family: var(--mono); font-size: 13.5px; font-weight: 500;
+      color: var(--text);
+    }
+    .symbol-body { padding: 14px 16px 16px; }
+    .symbol-body p { font-size: 14px; margin: 0; }
+
+    /* ── Code ── */
+    .code-block {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin: 16px 0 20px;
+    }
+    .code-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 14px;
+      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid var(--border);
+      font-family: var(--mono); font-size: 11px; color: var(--text-muted);
+    }
+    .code-block pre {
+      margin: 0; padding: 16px 18px;
+      overflow-x: auto;
+      font-size: 12.5px; line-height: 1.7;
+      color: var(--text-secondary);
+    }
+    .code-block pre .kw { color: var(--purple); }
+    .code-block pre .fn { color: var(--cyan); }
+    .code-block pre .str { color: var(--accent-bright); }
+    .code-block pre .cm { color: var(--text-muted); font-style: italic; }
+    .code-block pre .ty { color: var(--amber); }
+    .copy-btn {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-family: var(--font); font-size: 11px; font-weight: 600;
+      padding: 4px 9px; border-radius: 5px; cursor: pointer;
+    }
+    .copy-btn:hover { color: var(--text); }
+    .copy-btn.copied { color: var(--accent-bright); border-color: var(--accent-border); }
+
+    /* ── Tables ── */
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-card);
+      margin: 16px 0 24px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    th {
+      text-align: left; padding: 11px 14px;
+      font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-muted);
+      background: rgba(0,0,0,0.2);
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-secondary); vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+
+    /* ── Callouts ── */
+    .callout {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 14px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 14px; color: var(--text-secondary);
+      margin: 16px 0 20px;
+    }
+    .callout.info {
+      background: rgba(94,200,216,0.06);
+      border: 1px solid rgba(94,200,216,0.2);
+    }
+    .callout.info strong { color: var(--cyan); }
+    .callout.warn {
+      background: rgba(232,184,74,0.06);
+      border: 1px solid rgba(232,184,74,0.2);
+    }
+    .callout.warn strong { color: var(--amber); }
+    .callout.ok {
+      background: var(--accent-soft);
+      border: 1px solid var(--accent-border);
+    }
+    .callout.ok strong { color: var(--accent-bright); }
+
+    /* ── Subpath nav cards ── */
+    .subpath-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 10px;
+      margin: 20px 0 8px;
+    }
+    .subpath-card {
+      display: block;
+      padding: 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      transition: border-color .15s, background .15s, transform .15s;
+    }
+    .subpath-card:hover {
+      border-color: var(--accent-border);
+      background: var(--bg-card-hover);
+      transform: translateY(-1px);
+      color: inherit;
+    }
+    .subpath-card .name {
+      font-family: var(--mono); font-size: 12.5px; font-weight: 500;
+      color: var(--accent-bright); margin-bottom: 6px;
+    }
+    .subpath-card .desc {
+      font-size: 13px; color: var(--text-muted); line-height: 1.45;
+    }
+
+    /* ── Diagram ── */
+    .diagram {
+      font-family: var(--mono); font-size: 11.5px; line-height: 1.55;
+      color: var(--text-muted);
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      overflow-x: auto;
+      margin: 16px 0 24px;
+      white-space: pre;
+    }
+    .diagram .hl { color: var(--accent-bright); }
+    .diagram .dim { color: #3d4455; }
+
+    /* ── Footer ── */
+    .doc-footer {
+      margin-top: 48px; padding-top: 28px;
+      border-top: 1px solid var(--border);
+      display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px;
+      font-size: 13px; color: var(--text-muted);
+    }
+    .doc-footer a { color: var(--text-secondary); font-weight: 500; }
+    .doc-footer a:hover { color: var(--accent-bright); }
+
+    /* ── Responsive ── */
+    @media (max-width: 960px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar {
+        position: fixed; left: 0; top: var(--nav-h); bottom: 0;
+        width: min(300px, 85vw); z-index: 90;
+        transform: translateX(-100%);
+        transition: transform .2s ease;
+        border-right: 1px solid var(--border);
+        box-shadow: 20px 0 40px rgba(0,0,0,0.4);
+      }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-toggle { display: inline-flex; }
+      .main { padding: 28px 20px 80px; }
+      .nav-links .hide-sm { display: none; }
+      .sidebar-backdrop {
+        display: none; position: fixed; inset: 0; top: var(--nav-h);
+        background: rgba(0,0,0,0.5); z-index: 80;
+      }
+      .sidebar-backdrop.show { display: block; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-glow" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <div class="nav-inner">
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle API menu" type="button">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 5h12M3 9h12M3 13h12"/></svg>
+        </button>
+        <a class="brand" href="index.html">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="none"><circle cx="8" cy="8" r="6" fill="#8fd14f"/><circle cx="6.2" cy="6.2" r="1.6" fill="#0a0c10" opacity=".35"/></svg>
+          </span>
+          Avocado
+          <span class="brand-sep" aria-hidden="true"></span>
+          <span class="brand-page">API</span>
+        </a>
+      </div>
+      <ul class="nav-links">
+        <li class="hide-sm"><a href="index.html">Guide</a></li>
+        <li><a class="active" href="api.html">API</a></li>
+        <li class="hide-sm"><a href="https://www.npmjs.com/package/@vibecook/avocado-sdk" target="_blank" rel="noopener">npm</a></li>
+        <li><a class="nav-cta" href="https://github.com/jamesyong-42/avocado" target="_blank" rel="noopener">GitHub →</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="side-group">
+        <div class="side-group-title">Overview</div>
+        <a class="side-link active" href="#overview">Subpaths</a>
+      </div>
+      <div class="side-group">
+        <div class="side-group-title">SDK</div>
+        <a class="side-link" href="#sdk">
+          Core
+          <span class="pkg">@vibecook/avocado-sdk</span>
+        </a>
+        <a class="side-link" href="#types">
+          Types
+          <span class="pkg">…/types</span>
+        </a>
+        <a class="side-link" href="#node-pty">
+          Node PTY
+          <span class="pkg">…/node-pty</span>
+        </a>
+        <a class="side-link" href="#transport-ipc">
+          Transport IPC
+          <span class="pkg">…/transport-ipc</span>
+        </a>
+        <a class="side-link" href="#transport-truffle">
+          Transport Truffle
+          <span class="pkg">…/transport-truffle</span>
+        </a>
+        <a class="side-link" href="#react">
+          React
+          <span class="pkg">…/react</span>
+        </a>
+      </div>
+      <div class="side-group">
+        <div class="side-group-title">CLI</div>
+        <a class="side-link" href="#cli">
+          avo
+          <span class="pkg">@vibecook/avocado</span>
+        </a>
+      </div>
+      <div class="side-group">
+        <div class="side-group-title">Guide</div>
+        <a class="side-link" href="index.html#install">Install</a>
+        <a class="side-link" href="index.html#quickstart">Quick start</a>
+        <a class="side-link" href="index.html#concepts">Concepts</a>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="page-header">
+        <div class="eyebrow">Reference</div>
+        <h1>API Reference</h1>
+        <p>
+          Public surface for <code style="font-size:13px;color:var(--accent-bright);background:var(--accent-soft);padding:2px 6px;border-radius:4px">@vibecook/avocado-sdk</code>
+          and the <code style="font-size:13px;color:var(--accent-bright);background:var(--accent-soft);padding:2px 6px;border-radius:4px">avo</code> CLI.
+          Pre-alpha — APIs may change before 1.0.
+        </p>
+      </header>
+
+      <!-- Overview -->
+      <section class="doc-section" id="overview">
+        <h2>Subpaths</h2>
+        <p class="lead">Import only what you need. Peer dependencies are optional at the package level — install peers for the subpaths you use.</p>
+        <div class="subpath-grid">
+          <a class="subpath-card" href="#sdk">
+            <div class="name">@vibecook/avocado-sdk</div>
+            <div class="desc">Core session manager, terminal service, types</div>
+          </a>
+          <a class="subpath-card" href="#types">
+            <div class="name">…/types</div>
+            <div class="desc">Interfaces, protocol constants, utilities</div>
+          </a>
+          <a class="subpath-card" href="#node-pty">
+            <div class="name">…/node-pty</div>
+            <div class="desc">LocalPTYSession · peer: node-pty</div>
+          </a>
+          <a class="subpath-card" href="#transport-ipc">
+            <div class="name">…/transport-ipc</div>
+            <div class="desc">UDS / Named Pipe CLI bridge</div>
+          </a>
+          <a class="subpath-card" href="#transport-truffle">
+            <div class="name">…/transport-truffle</div>
+            <div class="desc">Tailscale mesh · peer: truffle ^0.6</div>
+          </a>
+          <a class="subpath-card" href="#react">
+            <div class="name">…/react</div>
+            <div class="desc">Provider, grid, hooks, renderers</div>
+          </a>
+        </div>
+        <div class="code-block">
+          <div class="code-header">
+            <span>imports</span>
+            <button class="copy-btn" type="button" data-copy="import { createPTYSessionManager } from '@vibecook/avocado-sdk';
+import { LocalPTYSession } from '@vibecook/avocado-sdk/node-pty';
+import { createUDSServer } from '@vibecook/avocado-sdk/transport-ipc';
+import { PTYMeshBridge } from '@vibecook/avocado-sdk/transport-truffle';
+import { AvocadoProvider, TerminalGrid } from '@vibecook/avocado-sdk/react';">Copy</button>
+          </div>
+          <pre><span class="kw">import</span> { <span class="fn">createPTYSessionManager</span> }     <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk'</span>;
+<span class="kw">import</span> { <span class="ty">LocalPTYSession</span> }             <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/node-pty'</span>;
+<span class="kw">import</span> { <span class="fn">createUDSServer</span> }             <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/transport-ipc'</span>;
+<span class="kw">import</span> { <span class="ty">PTYMeshBridge</span> }               <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/transport-truffle'</span>;
+<span class="kw">import</span> { <span class="ty">AvocadoProvider</span>, <span class="ty">TerminalGrid</span> } <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/react'</span>;</pre>
+        </div>
+      </section>
+
+      <!-- Core SDK -->
+      <section class="doc-section" id="sdk">
+        <h2>Core <span class="path">@vibecook/avocado-sdk</span></h2>
+        <p class="lead">Flagship entry — re-exports the core session-management surface and shared types. No required peer dependencies.</p>
+
+        <h3>PTYSessionManager</h3>
+        <p>Owns a set of <code>IPTYSession</code>s and registered <code>IPTYTransport</code>s. Routes I/O by session source so local, IPC, and remote sessions share one API.</p>
+
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-fn">function</span>
+            <span class="symbol-name">createPTYSessionManager()</span>
+          </div>
+          <div class="symbol-body"><p>Factory for a new session manager instance.</p></div>
+        </div>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-class">class</span>
+            <span class="symbol-name">PTYSessionManager</span>
+          </div>
+          <div class="symbol-body">
+            <p>Register sessions, attach transports, subscribe to lifecycle events (<code>sessionDiscovered</code>, <code>sessionLost</code>, <code>output</code>, <code>exit</code>, <code>resized</code>, <code>focusChanged</code>).</p>
+          </div>
+        </div>
+
+        <h3>TerminalService</h3>
+        <p>Tracks virtual terminals attached to sessions and enforces one-active-terminal-per-session. Multiple passive viewers can share a shell; only one accepts input.</p>
+
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-fn">function</span>
+            <span class="symbol-name">createTerminalService(sessionManager)</span>
+          </div>
+          <div class="symbol-body"><p>Create a terminal service bound to a session manager.</p></div>
+        </div>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-class">class</span>
+            <span class="symbol-name">TerminalServiceImpl</span>
+          </div>
+          <div class="symbol-body"><p>Implementation of the <code>TerminalService</code> interface — create/list terminals, set active, resize, mode switching.</p></div>
+        </div>
+
+        <h3>Terminal store sync</h3>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-fn">function</span>
+            <span class="symbol-name">createTerminalStoreSync(…)</span>
+          </div>
+          <div class="symbol-body"><p>Sync virtual-terminal layout state across processes or devices via a store backend.</p></div>
+        </div>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-class">class</span>
+            <span class="symbol-name">TerminalStoreSyncImpl</span>
+          </div>
+          <div class="symbol-body"><p>Implements <code>ITerminalStoreSync</code> — terminal entries, modes, and change events.</p></div>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header"><span>core imports</span></div>
+          <pre><span class="kw">import</span> {
+  <span class="fn">createPTYSessionManager</span>,
+  <span class="ty">PTYSessionManager</span>,
+  <span class="fn">createTerminalService</span>,
+  <span class="ty">TerminalServiceImpl</span>,
+  <span class="fn">createTerminalStoreSync</span>,
+  <span class="fn">getOriginalId</span>,
+  <span class="ty">WS_PTY_MESSAGE_TYPES</span>,
+} <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk'</span>;</pre>
+        </div>
+      </section>
+
+      <!-- Types -->
+      <section class="doc-section" id="types">
+        <h2>Types <span class="path">@vibecook/avocado-sdk/types</span></h2>
+        <p class="lead">Shared types, interfaces, and protocol constants. Largely a type surface with a few runtime utilities (IDs, buffers, message guards).</p>
+
+        <h3>Core interfaces</h3>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-type">interface</span>
+            <span class="symbol-name">IPTYSession</span>
+          </div>
+          <div class="symbol-body">
+            <p>Running PTY contract: id, dimensions, write/resize/kill, and events — <code>output</code>, <code>resized</code>, <code>exit</code>, <code>focusChanged</code>. Implemented by local, IPC, and proxy sessions.</p>
+          </div>
+        </div>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-type">interface</span>
+            <span class="symbol-name">IPTYTransport</span>
+          </div>
+          <div class="symbol-body">
+            <p>Symmetric viewer/owner contract. Viewer: <code>sendInput</code>, <code>sendResize</code>, <code>sendKill</code>, <code>sendFocus</code>, <code>subscribe</code>. Owner: <code>sendOutput</code>, <code>sendResized</code>, <code>sendSessionEnded</code>, <code>sendFocusChanged</code>.</p>
+          </div>
+        </div>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-class">class</span>
+            <span class="symbol-name">BasePTYSession</span>
+          </div>
+          <div class="symbol-body"><p>Abstract base with shared lifecycle and event-emitter logic. Constants: <code>DEFAULT_COLS</code>, <code>DEFAULT_ROWS</code>.</p></div>
+        </div>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-type">interface</span>
+            <span class="symbol-name">TerminalBackend</span>
+          </div>
+          <div class="symbol-body"><p>Abstract host API for the React layer — Electron IPC, WebSocket, or any shim that surfaces sessions and terminals to the renderer.</p></div>
+        </div>
+
+        <h3>Session &amp; transport types</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Type</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><code>SessionSource</code></td><td><code>'local' | 'ipc' | 'ws'</code></td></tr>
+              <tr><td><code>TransportType</code></td><td>Transport discriminator</td></tr>
+              <tr><td><code>SessionMetadata</code></td><td>Base / IPC / WS metadata union</td></tr>
+              <tr><td><code>PTYSessionState</code></td><td>Lifecycle state of a session</td></tr>
+              <tr><td><code>RemoteSessionAnnounce</code></td><td>Shape published in mesh sync store</td></tr>
+              <tr><td><code>ConnectionState</code> / <code>HandshakeState</code></td><td>IPC / wire connection phases</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Virtual terminal types</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Type</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><code>TerminalInfo</code></td><td>UI terminal record</td></tr>
+              <tr><td><code>TerminalMode</code></td><td>Active vs passive input mode</td></tr>
+              <tr><td><code>TerminalType</code></td><td>Terminal kind / renderer class</td></tr>
+              <tr><td><code>CreateSessionOptions</code> / <code>CreateTerminalOptions</code></td><td>Creation option bags</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Protocol</h3>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-const">const</span>
+            <span class="symbol-name">WS_PTY_MESSAGE_TYPES</span>
+          </div>
+          <div class="symbol-body">
+            <p>Wire-format discriminators shared across IPC and mesh transports (<code>pty:input</code>, <code>pty:output</code>, <code>pty:resize</code>, …). Guards: <code>isWSPTYMessageType</code>, <code>isWSOutputPayload</code>, <code>isWSInputPayload</code>, etc.</p>
+          </div>
+        </div>
+
+        <h3>Utilities</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Export</th><th>Role</th></tr></thead>
+            <tbody>
+              <tr><td><code>generateSessionId</code> / <code>generateLocalSessionId</code> / <code>generateCliSessionId</code></td><td>ID helpers</td></tr>
+              <tr><td><code>createNamespacedId</code> / <code>parseNamespacedId</code> / <code>getOriginalId</code></td><td>Namespaced session IDs</td></tr>
+              <tr><td><code>getSocketDir</code> / <code>getSocketPath</code></td><td>Default IPC socket paths</td></tr>
+              <tr><td><code>CircularOutputBuffer</code> / <code>createOutputBuffer</code></td><td>Output buffering when disconnected</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- node-pty -->
+      <section class="doc-section" id="node-pty">
+        <h2>Node PTY <span class="path">…/node-pty</span></h2>
+        <p class="lead">Local PTY source. <strong>Peer dependency:</strong> <code>node-pty</code>.</p>
+
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-class">class</span>
+            <span class="symbol-name">LocalPTYSession</span>
+          </div>
+          <div class="symbol-body">
+            <p>Implements <code>IPTYSession</code>. Emits <code>output</code>, <code>exit</code>, <code>resized</code> into the session manager. Spawn via static <code>LocalPTYSession.spawn(spawnFn, spawnConfig, options)</code>.</p>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Type</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><code>PTYSpawnFunction</code></td><td>Adapter over <code>node-pty</code>’s <code>spawn</code></td></tr>
+              <tr><td><code>PTYSpawnConfig</code></td><td>command, args, cwd, cols, rows, env, …</td></tr>
+              <tr><td><code>LocalPTYSessionOptions</code></td><td>Metadata passed into the session</td></tr>
+              <tr><td><code>IPty</code></td><td>Minimal node-pty process surface</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header"><span>spawn local shell</span></div>
+          <pre><span class="kw">import</span> { <span class="ty">LocalPTYSession</span>, <span class="kw">type</span> <span class="ty">PTYSpawnFunction</span> } <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/node-pty'</span>;
+<span class="kw">import</span> { spawn <span class="kw">as</span> ptySpawn } <span class="kw">from</span> <span class="str">'node-pty'</span>;
+
+<span class="kw">const</span> spawnFn: <span class="ty">PTYSpawnFunction</span> = (opts) =>
+  <span class="fn">ptySpawn</span>(opts.command, opts.args, opts);
+
+<span class="kw">const</span> session = <span class="ty">LocalPTYSession</span>.<span class="fn">spawn</span>(
+  spawnFn,
+  {
+    command: <span class="str">'/bin/bash'</span>,
+    args: [],
+    cwd: process.<span class="fn">cwd</span>(),
+    cols: <span class="ty">120</span>,
+    rows: <span class="ty">32</span>,
+  },
+  { command: <span class="str">'bash'</span>, cwd: process.<span class="fn">cwd</span>() }
+);
+sessionManager.<span class="fn">registerSession</span>(session);</pre>
+        </div>
+      </section>
+
+      <!-- transport-ipc -->
+      <section class="doc-section" id="transport-ipc">
+        <h2>Transport IPC <span class="path">…/transport-ipc</span></h2>
+        <p class="lead">Unix Domain Socket (macOS/Linux) or Named Pipe (Windows). Bridges a CLI process to a long-running host so sessions appear with <code>source: 'ipc'</code>. No peer deps — uses built-in Node networking. Messages are <strong>msgpack</strong>-encoded with the same <code>WS_PTY_MESSAGE_TYPES</code> discriminators as the mesh.</p>
+
+        <h3>Exports</h3>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-fn">function</span>
+            <span class="symbol-name">createUDSServer() · UDSServer</span>
+          </div>
+          <div class="symbol-body"><p>Listen on a socket path; accept CLI connections and dispatch namespaced handlers.</p></div>
+        </div>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-fn">function</span>
+            <span class="symbol-name">createPTYIPCBridge(sessionManager) · PTYIPCBridgeImpl</span>
+          </div>
+          <div class="symbol-body"><p>Wire the UDS server into the session manager — announce sessions, multiplex I/O, handle connection lifecycle.</p></div>
+        </div>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-class">class</span>
+            <span class="symbol-name">IPCPTYTransport · createIPCPTYTransport</span>
+          </div>
+          <div class="symbol-body"><p>Per-connection <code>IPTYTransport</code> over the message bus.</p></div>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header"><span>host wiring</span></div>
+          <pre><span class="kw">import</span> { <span class="fn">createPTYSessionManager</span> } <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk'</span>;
+<span class="kw">import</span> {
+  <span class="fn">createUDSServer</span>,
+  <span class="fn">createPTYIPCBridge</span>,
+} <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/transport-ipc'</span>;
+
+<span class="kw">const</span> sessionManager = <span class="fn">createPTYSessionManager</span>();
+<span class="kw">const</span> udsServer = <span class="fn">createUDSServer</span>();
+udsServer.<span class="fn">start</span>({ socketPath: <span class="str">'/tmp/my-app.sock'</span> });
+
+<span class="kw">const</span> bridge = <span class="fn">createPTYIPCBridge</span>(sessionManager);
+bridge.<span class="fn">initialize</span>(udsServer);
+
+<span class="cm">// Windows named pipe example:</span>
+<span class="cm">// socketPath: '\\\\.\\pipe\\my-app'</span></pre>
+        </div>
+
+        <div class="callout info">
+          <span aria-hidden="true">↳</span>
+          <div><strong>Wire format.</strong> Length-prefixed MessagePack. Same message type vocabulary as mesh, so the session-management layer does not change between transports.</div>
+        </div>
+      </section>
+
+      <!-- transport-truffle -->
+      <section class="doc-section" id="transport-truffle">
+        <h2>Transport Truffle <span class="path">…/transport-truffle</span></h2>
+        <p class="lead">Cross-device terminal session sync over Tailscale via <a href="https://www.npmjs.com/package/@vibecook/truffle" target="_blank" rel="noopener">@vibecook/truffle</a>. <strong>Peer:</strong> <code>@vibecook/truffle@^0.6.0</code> (Peer-first API, RFC 022). Live routing uses Peer handles; durable ULIDs are for SyncedStore discovery only.</p>
+
+        <h3>Architecture</h3>
+        <div class="diagram"><span class="dim">            </span>┌─────────────────────────┐
+<span class="dim">            </span>│  <span class="hl">RemoteSessionService</span>   │  orchestrator
+<span class="dim">            </span>└──────────┬──────────────┘
+<span class="dim">     </span>┌─────────────────┼─────────────────┐
+<span class="dim">     </span>│                 │                 │
+┌────▼────────┐ ┌──────▼──────┐ ┌────────▼────────┐
+│<span class="hl">PTYMeshBridge</span>│ │<span class="hl">PTYSyncStore</span> │ │ <span class="hl">RelaySessionMgr</span> │
+└─────┬───────┘ └─────┬───────┘ └─────────────────┘
+      │               │
+      │ Peer handles  │ SyncedStore (ULID slices)
+┌─────▼───────────────────────────────────┐
+│     <span class="hl">@vibecook/truffle</span> ≥ 0.6             │
+│   MeshNode + Peer + SyncedStore         │
+└─────────────────────────────────────────┘</div>
+
+        <h3>Key exports</h3>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-class">class</span>
+            <span class="symbol-name">MeshPTYTransport · createMeshPTYTransport</span>
+          </div>
+          <div class="symbol-body"><p>One per peer; holds a <code>Peer</code> handle; implements <code>IPTYTransport</code>. Namespace: <code>PTY_NAMESPACE</code>.</p></div>
+        </div>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-class">class</span>
+            <span class="symbol-name">PTYMeshBridge · createPTYMeshBridge</span>
+          </div>
+          <div class="symbol-body"><p>Transport lifecycle for online peers (not gated on <code>wsConnected</code>). Primary key <code>peer.ref</code>; secondary index by durable ULID for store reconciliation.</p></div>
+        </div>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-class">class</span>
+            <span class="symbol-name">PTYSyncStore · createPTYSyncStore</span>
+          </div>
+          <div class="symbol-body"><p>Session discovery via truffle’s <code>SyncedStore</code> — per-device slices of <code>{ sessions, updatedAt }</code>, keyed by durable ULID. Default store id: <code>DEFAULT_PTY_STORE_ID</code>.</p></div>
+        </div>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-class">class</span>
+            <span class="symbol-name">RelaySessionManager · RelayPTYSession</span>
+          </div>
+          <div class="symbol-body"><p>Owner-side forwarders that copy <code>output</code> / <code>resized</code> / <code>exit</code> from a local session to a viewer’s transport.</p></div>
+        </div>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-class">class</span>
+            <span class="symbol-name">RemoteSessionService · createRemoteSessionService</span>
+          </div>
+          <div class="symbol-body"><p>Orchestrator: ties bridge + sync store + relays together and dispatches owner-side PTY commands. Optional <code>IPeerNotifier</code> for UI side-channels.</p></div>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header"><span>minimal mesh wiring</span></div>
+          <pre><span class="kw">import</span> { <span class="fn">createMeshNode</span> } <span class="kw">from</span> <span class="str">'@vibecook/truffle'</span>;
+<span class="kw">import</span> { <span class="fn">createPTYSessionManager</span> } <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk'</span>;
+<span class="kw">import</span> {
+  <span class="ty">PTYMeshBridge</span>,
+  <span class="ty">PTYSyncStore</span>,
+  <span class="ty">RemoteSessionService</span>,
+  <span class="kw">type</span> <span class="ty">IPeerNotifier</span>,
+} <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/transport-truffle'</span>;
+
+<span class="kw">const</span> node = <span class="kw">await</span> <span class="fn">createMeshNode</span>({
+  appId: <span class="str">'my-app'</span>,
+  deviceName: <span class="str">'my-device'</span>,
+  onAuthRequired: (url) => { <span class="cm">/* surface to UI */</span> },
+});
+
+<span class="kw">const</span> sessionManager = <span class="fn">createPTYSessionManager</span>();
+<span class="kw">const</span> bridge = <span class="kw">new</span> <span class="ty">PTYMeshBridge</span>({ node, sessionManager });
+<span class="kw">const</span> syncStore = <span class="kw">new</span> <span class="ty">PTYSyncStore</span>({ node });
+
+<span class="kw">const</span> notifier: <span class="ty">IPeerNotifier</span> = {
+  <span class="fn">sessionFocusChanged</span>: () => {},
+  <span class="fn">remoteSessionsChanged</span>: () => {},
+};
+
+<span class="kw">const</span> service = <span class="kw">new</span> <span class="ty">RemoteSessionService</span>({
+  node, sessionManager, bridge, syncStore, notifier,
+});
+
+<span class="kw">await</span> bridge.<span class="fn">initialize</span>();
+<span class="kw">await</span> service.<span class="fn">enable</span>();</pre>
+        </div>
+
+        <h3>Wire format</h3>
+        <p>Every PTY message on the mesh shares:</p>
+        <div class="code-block">
+          <div class="code-header"><span>mesh message shape</span></div>
+          <pre>{
+  type: <span class="str">'pty:input'</span> | <span class="str">'pty:output'</span> | <span class="str">'pty:resize'</span> | …,
+  sessionId: <span class="ty">string</span>,
+  <span class="cm">// type-specific fields</span>
+}</pre>
+        </div>
+        <p>JSON-serialized to a <code>Buffer</code>, sent via <code>peer.send('pty', buf)</code>. On receive, truffle decodes at the NAPI boundary — <code>msg.payload</code> is already a plain object; <code>msg.from</code> is an interned <code>Peer</code> (WhoIs-verified Tailscale attribution).</p>
+
+        <div class="callout warn">
+          <span aria-hidden="true">!</span>
+          <div><strong>Out of scope for v0.1.</strong> Remote session spawning (<code>CREATE_SESSION</code> → <code>CREATE_FAILED</code>). Primary device election / focus conflict resolution (cooperative last-write-wins).</div>
+        </div>
+      </section>
+
+      <!-- React -->
+      <section class="doc-section" id="react">
+        <h2>React <span class="path">…/react</span></h2>
+        <p class="lead">Components, hooks, and renderers. <strong>Peers:</strong> <code>react</code>, <code>xterm</code>, <code>@xterm/addon-fit</code>. WebGL path also needs <code>three</code>, <code>@react-three/fiber</code>, <code>@react-three/postprocessing</code>, <code>postprocessing</code> (and typically <code>@xterm/addon-webgl</code>).</p>
+
+        <h3>Context</h3>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-comp">component</span>
+            <span class="symbol-name">&lt;AvocadoProvider backend={…}&gt;</span>
+          </div>
+          <div class="symbol-body">
+            <p>Root provider. Pass a <code>TerminalBackend</code> that exposes the host process’s session/terminal APIs (Electron IPC, custom WebSocket, etc.). Hook: <code>useAvocadoBackend()</code>.</p>
+          </div>
+        </div>
+        <div class="code-block">
+          <div class="code-header"><span>App.tsx</span></div>
+          <pre><span class="kw">import</span> { <span class="ty">AvocadoProvider</span>, <span class="ty">TerminalGrid</span> } <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/react'</span>;
+
+<span class="kw">export function</span> <span class="fn">App</span>() {
+  <span class="kw">return</span> (
+    &lt;<span class="ty">AvocadoProvider</span> backend={electronBackend}&gt;
+      &lt;<span class="ty">TerminalGrid</span> /&gt;
+    &lt;/<span class="ty">AvocadoProvider</span>&gt;
+  );
+}</pre>
+        </div>
+
+        <h3>Components</h3>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-comp">component</span>
+            <span class="symbol-name">&lt;TerminalGrid&gt;</span>
+          </div>
+          <div class="symbol-body"><p>Responsive grid of virtual terminals with resize and active-tab handling. Props: <code>TerminalGridProps</code>, layout via <code>GridLayout</code>.</p></div>
+        </div>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-comp">component</span>
+            <span class="symbol-name">&lt;TerminalCard&gt; · &lt;VirtualTerminal&gt; · &lt;HeadlessTerminal&gt;</span>
+          </div>
+          <div class="symbol-body"><p>Single terminal surfaces — card chrome, full virtual terminal, or headless (no DOM renderer).</p></div>
+        </div>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-comp">component</span>
+            <span class="symbol-name">&lt;DefaultRenderer&gt;</span>
+          </div>
+          <div class="symbol-body"><p>xterm.js renderer — the default path.</p></div>
+        </div>
+        <div class="symbol">
+          <div class="symbol-head">
+            <span class="symbol-kind kind-comp">component</span>
+            <span class="symbol-name">WebGL · CRTEffect · TerminalPlane</span>
+          </div>
+          <div class="symbol-body">
+            <p>three.js / R3F renderer with optional CRT shader. Presets via <code>getPreset</code>, <code>mergeWithPreset</code>, <code>getPresetNames</code>, <code>PRESETS</code>. Texture sync: <code>useTextureSync</code>, <code>findXtermCanvas</code>.</p>
+          </div>
+        </div>
+
+        <h3>Hooks</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Hook</th><th>Returns</th></tr></thead>
+            <tbody>
+              <tr><td><code>usePTYSessions()</code></td><td>Live session list; optional <code>SessionSourceFilter</code></td></tr>
+              <tr><td><code>useTerminals()</code></td><td>Virtual terminal state</td></tr>
+              <tr><td><code>useTerminalGrid()</code></td><td>Grid layout + active terminal helpers</td></tr>
+              <tr><td><code>useTerminalAPI()</code></td><td>Imperative terminal operations</td></tr>
+              <tr><td><code>useRemoteSessions()</code></td><td>Mesh remote session offers</td></tr>
+              <tr><td><code>useTerminalCore()</code></td><td>Low-level core state/actions for custom renderers</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Renderer types</h3>
+        <p><code>CRTOptions</code>, <code>BloomOptions</code>, <code>RendererOptions</code>, <code>CRTPreset</code>, <code>RendererType</code>, <code>TerminalCoreState</code>, <code>TerminalCoreActions</code>, <code>TerminalRendererProps</code>, <code>VirtualTerminalRendererProps</code>.</p>
+      </section>
+
+      <!-- CLI -->
+      <section class="doc-section" id="cli">
+        <h2>CLI <span class="path">@vibecook/avocado</span></h2>
+        <p class="lead">General-purpose terminal session wrapper. Syncs to a host (e.g. the playground) over UDS / Named Pipe and can participate in mesh when the host has truffle enabled.</p>
+
+        <div class="code-block">
+          <div class="code-header"><span>install</span></div>
+          <pre>npm i -g @vibecook/avocado
+avo --help</pre>
+        </div>
+
+        <h3>Usage</h3>
+        <div class="code-block">
+          <div class="code-header"><span>avo</span></div>
+          <pre>avo                          <span class="cm"># wrap $SHELL</span>
+avo claude                   <span class="cm"># wrap claude CLI</span>
+avo -- htop                  <span class="cm"># -- separates avo flags from command</span>
+avo --no-sync bash           <span class="cm"># run without host connection</span>
+avo -s /path/to/sock bash    <span class="cm"># custom socket path</span></pre>
+        </div>
+
+        <p>On startup, <code>avo</code> prints a TUI banner with the wrapped command, session id, and sync status. Type <code>exit</code> or press <kbd style="font-size:12px;background:var(--bg-card);border:1px solid var(--border);padding:2px 6px;border-radius:4px;color:var(--text-secondary)">Ctrl+D</kbd> to leave.</p>
+
+        <h3>How it works</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Piece</th><th>Role</th></tr></thead>
+            <tbody>
+              <tr><td><strong>PTYHost</strong></td><td>Spawns the command in a pseudo-terminal via node-pty</td></tr>
+              <tr><td><strong>Router</strong></td><td>Multiplexes I/O between PTY, stdin/stdout, and sync</td></tr>
+              <tr><td><strong>SyncClient</strong></td><td>Connects to host: handshake, heartbeat, output buffer (up to 1MB when disconnected)</td></tr>
+              <tr><td><strong>RealTerminal</strong></td><td>Active/passive mode for focus management</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout ok">
+          <span aria-hidden="true">●</span>
+          <div><strong>Standalone-friendly.</strong> If the host isn’t running, <code>avo</code> silently retries in the background and buffers output until a connection is established.</div>
+        </div>
+
+        <div class="callout warn">
+          <span aria-hidden="true">!</span>
+          <div><strong>Stabilizing surface.</strong> Run <code>avo --help</code> for the authoritative flag list — the CLI is still evolving in pre-alpha.</div>
+        </div>
+      </section>
+
+      <div class="doc-footer">
+        <span>Avocado API · Pre-alpha · MIT</span>
+        <span>
+          <a href="index.html">← Guide</a>
+          ·
+          <a href="https://github.com/jamesyong-42/avocado">GitHub</a>
+          ·
+          <a href="https://www.npmjs.com/package/@vibecook/avocado-sdk">npm</a>
+        </span>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Sidebar active state from scroll
+    const links = [...document.querySelectorAll('.sidebar .side-link[href^="#"]')];
+    const sections = links
+      .map(a => document.querySelector(a.getAttribute('href')))
+      .filter(Boolean);
+
+    const setActive = () => {
+      let current = sections[0];
+      const y = window.scrollY + 120;
+      for (const s of sections) {
+        if (s.offsetTop <= y) current = s;
+      }
+      links.forEach(a => {
+        a.classList.toggle('active', a.getAttribute('href') === '#' + current.id);
+      });
+    };
+    setActive();
+    window.addEventListener('scroll', setActive, { passive: true });
+
+    // Mobile sidebar
+    const sidebar = document.getElementById('sidebar');
+    const toggle = document.getElementById('sidebarToggle');
+    const backdrop = document.getElementById('sidebarBackdrop');
+    const close = () => {
+      sidebar.classList.remove('open');
+      backdrop.classList.remove('show');
+    };
+    toggle?.addEventListener('click', () => {
+      const open = sidebar.classList.toggle('open');
+      backdrop.classList.toggle('show', open);
+    });
+    backdrop?.addEventListener('click', close);
+    sidebar?.querySelectorAll('a').forEach(a => a.addEventListener('click', close));
+
+    // Copy buttons
+    document.querySelectorAll('[data-copy]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(btn.getAttribute('data-copy') || '');
+          btn.classList.add('copied');
+          const prev = btn.textContent;
+          btn.textContent = 'Copied';
+          setTimeout(() => { btn.textContent = prev; btn.classList.remove('copied'); }, 1600);
+        } catch { btn.textContent = 'Failed'; }
+      });
+    });
+  </script>
+</body>
+</html>

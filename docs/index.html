@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Avocado — Terminal session sync for the web stack</title>
+  <meta name="description" content="One session model, pluggable transports. Sync PTY sessions across processes, machines, and networks — local, IPC, and Tailscale mesh." />
+  <meta name="theme-color" content="#0a0c10" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%231a2e14'/%3E%3Ccircle cx='16' cy='16' r='9' fill='%238fd14f'/%3E%3Ccircle cx='13' cy='13' r='2.5' fill='%230a0c10' opacity='.35'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0c10;
+      --bg-elevated: #0f1218;
+      --bg-card: #13171f;
+      --bg-card-hover: #171c26;
+      --bg-code: #0c0f14;
+      --border: #232833;
+      --border-strong: #2e3544;
+      --text: #e8eaef;
+      --text-secondary: #a0a8b8;
+      --text-muted: #6b7385;
+      --accent: #8fd14f;
+      --accent-bright: #a8e06a;
+      --accent-dim: #5fa32e;
+      --accent-soft: rgba(143, 209, 79, 0.12);
+      --accent-glow: rgba(143, 209, 79, 0.22);
+      --accent-border: rgba(143, 209, 79, 0.28);
+      --purple: #b89cff;
+      --amber: #e8b84a;
+      --cyan: #5ec8d8;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --radius-xs: 6px;
+      --font: "Instrument Sans", system-ui, -apple-system, sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+      --shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 12px 40px rgba(0,0,0,0.35);
+      --max: 1120px;
+      --nav-h: 64px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: calc(var(--nav-h) + 24px); }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    a { color: var(--accent-bright); text-decoration: none; transition: color .15s; }
+    a:hover { color: #c4f08a; }
+    code, kbd, pre { font-family: var(--mono); }
+    ::selection { background: var(--accent-glow); color: #fff; }
+
+    /* ── Ambient background ── */
+    .bg-grid {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 64px 64px;
+      mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 20%, transparent 75%);
+    }
+    .bg-glow {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background:
+        radial-gradient(ellipse 50% 40% at 50% -10%, rgba(143,209,79,0.14), transparent 60%),
+        radial-gradient(ellipse 30% 25% at 90% 20%, rgba(184,156,255,0.06), transparent 50%),
+        radial-gradient(ellipse 25% 20% at 10% 40%, rgba(94,200,216,0.05), transparent 50%);
+    }
+
+    /* ── Layout shell ── */
+    .shell { position: relative; z-index: 1; }
+
+    /* ── Nav ── */
+    .nav {
+      position: sticky; top: 0; z-index: 100;
+      height: var(--nav-h);
+      display: flex; align-items: center;
+      border-bottom: 1px solid transparent;
+      transition: border-color .2s, background .2s, backdrop-filter .2s;
+    }
+    .nav.scrolled {
+      background: rgba(10, 12, 16, 0.78);
+      backdrop-filter: blur(16px) saturate(1.4);
+      -webkit-backdrop-filter: blur(16px) saturate(1.4);
+      border-bottom-color: var(--border);
+    }
+    .nav-inner {
+      width: 100%; max-width: var(--max); margin: 0 auto;
+      padding: 0 24px;
+      display: flex; align-items: center; justify-content: space-between; gap: 24px;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 10px;
+      color: var(--text); font-weight: 600; font-size: 15px; letter-spacing: -0.02em;
+    }
+    .brand:hover { color: var(--text); }
+    .brand-mark {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: linear-gradient(145deg, #1f3a18, #0f1a0c);
+      border: 1px solid var(--accent-border);
+      display: grid; place-items: center;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+    .brand-mark svg { width: 16px; height: 16px; }
+    .nav-links {
+      display: flex; align-items: center; gap: 4px;
+      list-style: none; margin: 0; padding: 0;
+    }
+    .nav-links a {
+      color: var(--text-secondary);
+      font-size: 14px; font-weight: 500;
+      padding: 8px 12px; border-radius: var(--radius-xs);
+      transition: color .15s, background .15s;
+    }
+    .nav-links a:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+    .nav-links a.active { color: var(--accent-bright); }
+    .nav-cta {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px !important;
+      background: var(--accent-soft) !important;
+      border: 1px solid var(--accent-border);
+      color: var(--accent-bright) !important;
+      border-radius: var(--radius-xs);
+      font-weight: 600 !important;
+    }
+    .nav-cta:hover {
+      background: rgba(143,209,79,0.2) !important;
+      color: #c4f08a !important;
+    }
+    .nav-toggle {
+      display: none; background: none; border: 1px solid var(--border);
+      color: var(--text); width: 40px; height: 40px; border-radius: var(--radius-xs);
+      cursor: pointer; align-items: center; justify-content: center;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 12px 20px;
+      font-family: var(--font); font-size: 14px; font-weight: 600;
+      border-radius: var(--radius-sm); border: 1px solid transparent;
+      cursor: pointer; transition: transform .15s, background .15s, border-color .15s, box-shadow .15s;
+      text-decoration: none; white-space: nowrap;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary {
+      background: linear-gradient(180deg, var(--accent-bright), var(--accent));
+      color: #0a1206; border-color: transparent;
+      box-shadow: 0 1px 0 rgba(255,255,255,0.25) inset, 0 8px 24px var(--accent-glow);
+    }
+    .btn-primary:hover { color: #0a1206; filter: brightness(1.06); }
+    .btn-ghost {
+      background: rgba(255,255,255,0.03);
+      color: var(--text);
+      border-color: var(--border-strong);
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.06); color: var(--text); border-color: #3a4254; }
+
+    /* ── Hero ── */
+    .hero {
+      max-width: var(--max); margin: 0 auto;
+      padding: 72px 24px 48px;
+      text-align: center;
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 12px 6px 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 12px; font-weight: 500; color: var(--text-secondary);
+      margin-bottom: 28px;
+      letter-spacing: 0.01em;
+    }
+    .badge-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+      animation: pulse 2.4s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 3px var(--accent-soft); }
+      50% { box-shadow: 0 0 0 6px rgba(143,209,79,0.08); }
+    }
+    .hero h1 {
+      margin: 0 auto 20px;
+      max-width: 820px;
+      font-size: clamp(2.4rem, 5.5vw, 3.75rem);
+      font-weight: 700;
+      line-height: 1.08;
+      letter-spacing: -0.035em;
+      color: var(--text);
+    }
+    .hero h1 em {
+      font-style: normal;
+      background: linear-gradient(135deg, var(--accent-bright) 0%, #6fbf3a 50%, var(--cyan) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .hero-lead {
+      margin: 0 auto 36px;
+      max-width: 580px;
+      font-size: 1.125rem;
+      color: var(--text-secondary);
+      line-height: 1.65;
+    }
+    .hero-actions {
+      display: flex; flex-wrap: wrap; gap: 12px;
+      justify-content: center; margin-bottom: 56px;
+    }
+    .hero-install {
+      display: inline-flex; align-items: center; gap: 12px;
+      padding: 10px 12px 10px 16px;
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: var(--mono); font-size: 13px; color: var(--text-secondary);
+      max-width: 100%; overflow-x: auto;
+    }
+    .hero-install code { color: var(--accent-bright); }
+    .copy-btn {
+      flex-shrink: 0;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-family: var(--font); font-size: 12px; font-weight: 600;
+      padding: 6px 10px; border-radius: 6px; cursor: pointer;
+      transition: color .15s, background .15s, border-color .15s;
+    }
+    .copy-btn:hover { color: var(--text); background: rgba(255,255,255,0.08); }
+    .copy-btn.copied { color: var(--accent-bright); border-color: var(--accent-border); }
+
+    /* ── Terminal mock ── */
+    .terminal-mock {
+      max-width: 780px; margin: 0 auto;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow), 0 0 80px rgba(143,209,79,0.06);
+      overflow: hidden;
+      text-align: left;
+    }
+    .term-chrome {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 16px;
+      background: rgba(0,0,0,0.25);
+      border-bottom: 1px solid var(--border);
+    }
+    .term-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .term-dot.r { background: #ff5f57; }
+    .term-dot.y { background: #febc2e; }
+    .term-dot.g { background: #28c840; }
+    .term-title {
+      flex: 1; text-align: center;
+      font-size: 12px; color: var(--text-muted); font-family: var(--mono);
+    }
+    .term-body {
+      padding: 20px 22px 24px;
+      font-family: var(--mono); font-size: 12.5px; line-height: 1.7;
+      color: var(--text-secondary);
+    }
+    .term-body .c-g { color: var(--accent-bright); }
+    .term-body .c-m { color: var(--text-muted); }
+    .term-body .c-p { color: var(--purple); }
+    .term-body .c-c { color: var(--cyan); }
+    .term-body .c-w { color: var(--text); }
+    .term-body .prompt { color: var(--accent); }
+    .term-cursor {
+      display: inline-block; width: 8px; height: 14px;
+      background: var(--accent); vertical-align: text-bottom;
+      margin-left: 2px; animation: blink 1.1s step-end infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* ── Sections ── */
+    section {
+      max-width: var(--max); margin: 0 auto;
+      padding: 80px 24px 0;
+    }
+    .section-label {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: var(--mono); font-size: 11px; font-weight: 500;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 14px;
+    }
+    .section-label::before {
+      content: ""; width: 16px; height: 1px; background: var(--accent-dim);
+    }
+    h2 {
+      margin: 0 0 16px;
+      font-size: clamp(1.75rem, 3vw, 2.25rem);
+      font-weight: 700; letter-spacing: -0.03em; line-height: 1.15;
+    }
+    .section-lead {
+      margin: 0 0 40px;
+      max-width: 560px;
+      color: var(--text-secondary); font-size: 1.05rem;
+    }
+    h3 {
+      margin: 0 0 10px;
+      font-size: 1.05rem; font-weight: 600; letter-spacing: -0.015em;
+    }
+
+    /* ── Feature grid ── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      transition: border-color .2s, background .2s, transform .2s;
+    }
+    .feature-card:hover {
+      border-color: var(--border-strong);
+      background: var(--bg-card-hover);
+      transform: translateY(-1px);
+    }
+    .feature-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      display: grid; place-items: center; margin-bottom: 16px;
+      background: var(--accent-soft);
+      border: 1px solid var(--accent-border);
+      color: var(--accent-bright);
+    }
+    .feature-icon.purple { background: rgba(184,156,255,0.1); border-color: rgba(184,156,255,0.25); color: var(--purple); }
+    .feature-icon.cyan { background: rgba(94,200,216,0.1); border-color: rgba(94,200,216,0.25); color: var(--cyan); }
+    .feature-icon.amber { background: rgba(232,184,74,0.1); border-color: rgba(232,184,74,0.25); color: var(--amber); }
+    .feature-card p {
+      margin: 0; color: var(--text-secondary); font-size: 14.5px; line-height: 1.55;
+    }
+    .feature-card code {
+      font-size: 12.5px; color: var(--accent-bright);
+      background: rgba(143,209,79,0.08); padding: 1px 5px; border-radius: 4px;
+    }
+
+    /* ── Architecture ── */
+    .arch-tree {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px;
+      display: grid; gap: 6px;
+    }
+    .arch-row {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 16px; align-items: center;
+      padding: 14px 18px;
+      border-radius: var(--radius-sm);
+      transition: background .15s;
+    }
+    .arch-row:hover { background: rgba(255,255,255,0.025); }
+    .arch-path {
+      font-family: var(--mono); font-size: 13px; font-weight: 500;
+      color: var(--accent-bright);
+    }
+    .arch-desc { font-size: 14px; color: var(--text-secondary); }
+    .arch-root {
+      padding: 16px 18px; margin-bottom: 4px;
+      border-bottom: 1px solid var(--border);
+    }
+    .arch-root .arch-path { font-size: 14px; color: var(--text); }
+    .arch-root .arch-desc { color: var(--text-muted); font-size: 13px; margin-top: 2px; }
+
+    /* ── Two-col content ── */
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px; align-items: start;
+    }
+    .split-wide { grid-template-columns: 1fr 1.15fr; }
+
+    /* ── Code blocks ── */
+    .code-block {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .code-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid var(--border);
+      font-family: var(--mono); font-size: 11px; color: var(--text-muted);
+      letter-spacing: 0.02em;
+    }
+    .code-block pre {
+      margin: 0; padding: 18px 20px;
+      overflow-x: auto;
+      font-size: 12.5px; line-height: 1.7;
+      color: var(--text-secondary);
+    }
+    .code-block pre .kw { color: var(--purple); }
+    .code-block pre .fn { color: var(--cyan); }
+    .code-block pre .str { color: var(--accent-bright); }
+    .code-block pre .cm { color: var(--text-muted); font-style: italic; }
+    .code-block pre .ty { color: var(--amber); }
+    .code-block pre .op { color: var(--text-muted); }
+
+    /* ── Tables ── */
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-card);
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th {
+      text-align: left; padding: 12px 16px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-muted);
+      background: rgba(0,0,0,0.2);
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-secondary); vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    td code, th code {
+      font-size: 12.5px; color: var(--accent-bright);
+      background: var(--accent-soft); padding: 2px 6px; border-radius: 4px;
+    }
+    td strong { color: var(--text); font-weight: 600; }
+
+    /* ── Concept cards ── */
+    .concept-stack { display: grid; gap: 12px; }
+    .concept {
+      display: grid; grid-template-columns: auto 1fr; gap: 16px;
+      padding: 20px 22px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .concept-num {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: grid; place-items: center;
+      font-family: var(--mono); font-size: 12px; font-weight: 600;
+      color: var(--accent-bright); background: var(--accent-soft);
+      border: 1px solid var(--accent-border);
+    }
+    .concept p { margin: 6px 0 0; color: var(--text-secondary); font-size: 14.5px; }
+    .concept code {
+      font-size: 12.5px; color: var(--accent-bright);
+      background: var(--accent-soft); padding: 1px 5px; border-radius: 4px;
+    }
+
+    /* ── Transport pills ── */
+    .transport-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .transport-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      display: flex; flex-direction: column; gap: 12px;
+      position: relative; overflow: hidden;
+    }
+    .transport-card.planned { opacity: 0.7; }
+    .transport-card .tag {
+      align-self: flex-start;
+      font-family: var(--mono); font-size: 10px; font-weight: 600;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 4px 8px; border-radius: 999px;
+    }
+    .tag.live { background: var(--accent-soft); color: var(--accent-bright); border: 1px solid var(--accent-border); }
+    .tag.soon { background: rgba(232,184,74,0.1); color: var(--amber); border: 1px solid rgba(232,184,74,0.25); }
+    .transport-card h3 { margin: 0; font-size: 1.1rem; }
+    .transport-card p { margin: 0; color: var(--text-secondary); font-size: 14px; flex: 1; }
+    .transport-card .path {
+      font-family: var(--mono); font-size: 11.5px; color: var(--text-muted);
+      padding-top: 12px; border-top: 1px solid var(--border);
+    }
+
+    /* ── Steps ── */
+    .steps { display: grid; gap: 20px; }
+    .step {
+      display: grid; grid-template-columns: 48px 1fr; gap: 20px;
+    }
+    .step-marker {
+      width: 40px; height: 40px; border-radius: 50%;
+      display: grid; place-items: center;
+      font-family: var(--mono); font-size: 13px; font-weight: 600;
+      color: var(--accent-bright);
+      background: var(--bg-card);
+      border: 1px solid var(--accent-border);
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+    .step-body h3 { margin-bottom: 8px; }
+    .step-body > p { margin: 0 0 14px; color: var(--text-secondary); font-size: 14.5px; }
+
+    /* ── Package cards ── */
+    .pkg-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    }
+    .pkg-card {
+      background: linear-gradient(165deg, var(--bg-card) 0%, #10151c 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+    .pkg-card.highlight {
+      border-color: var(--accent-border);
+      box-shadow: 0 0 0 1px var(--accent-soft), 0 20px 50px rgba(0,0,0,0.25);
+    }
+    .pkg-name {
+      font-family: var(--mono); font-size: 14px; font-weight: 500;
+      color: var(--accent-bright); margin-bottom: 8px;
+    }
+    .pkg-card p { margin: 0 0 18px; color: var(--text-secondary); font-size: 14.5px; }
+    .pkg-install {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 10px 12px;
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xs);
+      font-family: var(--mono); font-size: 12.5px; color: var(--text-secondary);
+    }
+
+    /* ── CTA band ── */
+    .cta-band {
+      margin: 100px auto 0;
+      max-width: var(--max);
+      padding: 0 24px;
+    }
+    .cta-inner {
+      position: relative; overflow: hidden;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px 40px;
+      text-align: center;
+    }
+    .cta-inner::before {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(ellipse 60% 80% at 50% 100%, rgba(143,209,79,0.12), transparent 70%);
+    }
+    .cta-inner h2 { position: relative; margin-bottom: 12px; }
+    .cta-inner p {
+      position: relative; margin: 0 auto 28px; max-width: 440px;
+      color: var(--text-secondary);
+    }
+    .cta-actions {
+      position: relative;
+      display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;
+    }
+
+    /* ── Footer ── */
+    footer {
+      max-width: var(--max); margin: 0 auto;
+      padding: 64px 24px 40px;
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;
+      border-top: 1px solid transparent;
+      margin-top: 80px;
+    }
+    .footer-inner {
+      width: 100%;
+      border-top: 1px solid var(--border);
+      padding-top: 32px;
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;
+    }
+    .footer-brand {
+      display: flex; align-items: center; gap: 8px;
+      color: var(--text-muted); font-size: 13px;
+    }
+    .footer-links {
+      display: flex; gap: 20px; list-style: none; margin: 0; padding: 0;
+    }
+    .footer-links a { color: var(--text-muted); font-size: 13px; font-weight: 500; }
+    .footer-links a:hover { color: var(--text-secondary); }
+
+    /* ── Inline content helpers ── */
+    .prose p { color: var(--text-secondary); margin: 0 0 14px; }
+    .prose p:last-child { margin-bottom: 0; }
+    .prose code {
+      font-size: 13px; color: var(--accent-bright);
+      background: var(--accent-soft); padding: 2px 6px; border-radius: 4px;
+    }
+    .note {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 14px 16px;
+      background: rgba(94,200,216,0.06);
+      border: 1px solid rgba(94,200,216,0.2);
+      border-radius: var(--radius-sm);
+      font-size: 14px; color: var(--text-secondary);
+      margin-top: 16px;
+    }
+    .note strong { color: var(--cyan); font-weight: 600; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .feature-grid, .transport-grid, .pkg-grid, .split, .split-wide {
+        grid-template-columns: 1fr;
+      }
+      .arch-row { grid-template-columns: 1fr; gap: 4px; }
+      .nav-links { display: none; }
+      .nav-links.open {
+        display: flex; flex-direction: column;
+        position: absolute; top: var(--nav-h); left: 0; right: 0;
+        background: rgba(10,12,16,0.96); backdrop-filter: blur(16px);
+        border-bottom: 1px solid var(--border);
+        padding: 12px 16px 20px; gap: 4px; align-items: stretch;
+      }
+      .nav-toggle { display: inline-flex; }
+      .nav { position: sticky; }
+      .nav-inner { position: relative; }
+      .hero { padding-top: 48px; }
+      .cta-inner { padding: 36px 24px; }
+    }
+    @media (max-width: 540px) {
+      .hero-install { flex-direction: column; align-items: stretch; }
+      .step { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-glow" aria-hidden="true"></div>
+
+  <div class="shell">
+    <nav class="nav" id="nav">
+      <div class="nav-inner">
+        <a class="brand" href="index.html">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" fill="#8fd14f"/><circle cx="6.2" cy="6.2" r="1.6" fill="#0a0c10" opacity=".35"/></svg>
+          </span>
+          Avocado
+        </a>
+        <button class="nav-toggle" id="navToggle" aria-label="Menu" type="button">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 5h12M3 9h12M3 13h12"/></svg>
+        </button>
+        <ul class="nav-links" id="navLinks">
+          <li><a href="#features">Features</a></li>
+          <li><a href="#architecture">Architecture</a></li>
+          <li><a href="#install">Install</a></li>
+          <li><a href="#quickstart">Quick start</a></li>
+          <li><a href="#transports">Transports</a></li>
+          <li><a href="api.html">API</a></li>
+          <li><a class="nav-cta" href="https://github.com/jamesyong-42/avocado" target="_blank" rel="noopener">GitHub →</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <header class="hero">
+      <div class="badge">
+        <span class="badge-dot" aria-hidden="true"></span>
+        Pre-alpha · TypeScript · MIT
+      </div>
+      <h1>Terminal session sync<br />for the <em>web stack</em></h1>
+      <p class="hero-lead">
+        One session model. Pluggable transports. Factor out the plumbing every terminal UI rebuilds — and ship local PTY, IPC, and Tailscale mesh when you need them.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#install">Get started</a>
+        <a class="btn btn-ghost" href="api.html">API reference</a>
+        <a class="btn btn-ghost" href="https://github.com/jamesyong-42/avocado" target="_blank" rel="noopener">View on GitHub</a>
+      </div>
+      <div class="hero-install" id="installSnippet">
+        <code>pnpm add @vibecook/avocado-sdk</code>
+        <button class="copy-btn" type="button" data-copy="pnpm add @vibecook/avocado-sdk">Copy</button>
+      </div>
+
+      <div class="terminal-mock" style="margin-top: 48px" aria-hidden="true">
+        <div class="term-chrome">
+          <span class="term-dot r"></span>
+          <span class="term-dot y"></span>
+          <span class="term-dot g"></span>
+          <span class="term-title">avo · session sync</span>
+        </div>
+        <div class="term-body">
+          <div><span class="prompt">$</span> <span class="c-w">avo claude</span></div>
+          <div class="c-m">+-- avocado --------------------------------------------------------+</div>
+          <div class="c-m">|  <span class="c-g">AVO</span>                                                              |</div>
+          <div class="c-m">|  cmd  claude                                                      |</div>
+          <div class="c-m">|  id   <span class="c-c">avo-48291-x9k2m</span>                                              |</div>
+          <div class="c-m">|  sync <span class="c-g">●</span> connected · mesh peers: 2                                  |</div>
+          <div class="c-m">+--------------------------------------------------------------------+</div>
+          <div><span class="c-p">claude</span> <span class="c-m">›</span> ready on laptop <span class="c-m">&amp;</span> studio</div>
+          <div><span class="prompt">›</span> <span class="term-cursor"></span></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Features -->
+    <section id="features">
+      <div class="section-label">Why Avocado</div>
+      <h2>Stop re-implementing terminal plumbing</h2>
+      <p class="section-lead">
+        Every terminal UI project ends up reinventing PTY spawning, output buffers, resize coordination, focus handoff, and multi-device sync. Avocado owns that layer.
+      </p>
+      <div class="feature-grid">
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="11" y="3" width="6" height="6" rx="1.5"/><rect x="3" y="11" width="6" height="6" rx="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5"/></svg>
+          </div>
+          <h3>One session model</h3>
+          <p>A single <code>IPTYSession</code> + <code>PTYSessionManager</code>. Local PTYs, CLI-over-IPC, and remote peer sessions all look identical to your UI layer.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon purple" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 10h4l2-6 2 12 2-6h4"/><circle cx="4" cy="10" r="1.5" fill="currentColor" stroke="none"/><circle cx="16" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg>
+          </div>
+          <h3>Pluggable transports</h3>
+          <p>Ship only what you need — <code>node-pty</code> for local shells, UDS/Named Pipe for CLI bridges, Tailscale mesh via <code>@vibecook/truffle</code> for cross-device sharing.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon cyan" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="14" height="12" rx="2"/><path d="M6 8h3M6 11h8M6 14h5"/></svg>
+          </div>
+          <h3>xterm.js + WebGL</h3>
+          <p>Drop-in React components and hooks. Default xterm.js renderer, optional WebGL path with CRT shaders for a premium terminal surface.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon amber" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 4h8v3H6zM4 9h12v7H4z"/><path d="M8 12h4"/></svg>
+          </div>
+          <h3>Typed end-to-end</h3>
+          <p>Strict TypeScript, source maps, and a small public surface — <code>IPTYTransport</code>, <code>IPTYSession</code>, <code>ITerminalStoreSync</code>. Optional peers only for the subpaths you import.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- Architecture -->
+    <section id="architecture">
+      <div class="section-label">Architecture</div>
+      <h2>Subpath exports, clean boundaries</h2>
+      <p class="section-lead">
+        The SDK is carved into focused modules. Core stays free of heavy peers; transports and React opt in only when you need them.
+      </p>
+      <div class="arch-tree">
+        <div class="arch-root">
+          <div class="arch-path">@vibecook/avocado-sdk</div>
+          <div class="arch-desc">Flagship entry — PTYSessionManager, TerminalService, shared types</div>
+        </div>
+        <div class="arch-row">
+          <div class="arch-path">/types</div>
+          <div class="arch-desc">Interfaces &amp; protocol constants — IPTYSession, IPTYTransport, wire types</div>
+        </div>
+        <div class="arch-row">
+          <div class="arch-path">/node-pty</div>
+          <div class="arch-desc">Spawn local PTYs · peer: node-pty</div>
+        </div>
+        <div class="arch-row">
+          <div class="arch-path">/transport-ipc</div>
+          <div class="arch-desc">Unix Domain Socket / Named Pipe · CLI ↔ host bridge</div>
+        </div>
+        <div class="arch-row">
+          <div class="arch-path">/transport-truffle</div>
+          <div class="arch-desc">Tailscale mesh sync · peer: @vibecook/truffle ≥ 0.6</div>
+        </div>
+        <div class="arch-row">
+          <div class="arch-path">/react</div>
+          <div class="arch-desc">Provider, grid, hooks, xterm + WebGL renderers</div>
+        </div>
+      </div>
+      <div class="note" style="margin-top: 20px">
+        <span aria-hidden="true">↳</span>
+        <div><strong>Uniform abstraction.</strong> All transports implement <code>IPTYTransport</code>. The session manager routes by session source — local, IPC, and remote peers feel identical above that boundary.</div>
+      </div>
+    </section>
+
+    <!-- Concepts -->
+    <section id="concepts">
+      <div class="section-label">Concepts</div>
+      <h2>Sessions, transports, terminals</h2>
+      <p class="section-lead">Three layers, one mental model. Understand these and the rest of the API falls into place.</p>
+      <div class="concept-stack">
+        <div class="concept">
+          <div class="concept-num">01</div>
+          <div>
+            <h3>IPTYSession</h3>
+            <p>A running PTY with id, dimensions, output stream, and lifecycle events — <code>output</code>, <code>resized</code>, <code>exit</code>, <code>focusChanged</code>. Every backend (local, IPC, proxy) implements the same interface.</p>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-num">02</div>
+          <div>
+            <h3>PTYSessionManager + IPTYTransport</h3>
+            <p>The manager owns sessions and registered transports. Each session has a <code>source</code> — <code>'local'</code>, <code>'ipc'</code>, or <code>'ws'</code>. Transports implement a symmetric viewer/owner contract: input, resize, kill, focus, subscribe — plus owner-side output and lifecycle.</p>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-num">03</div>
+          <div>
+            <h3>TerminalService</h3>
+            <p>Tracks virtual terminals (UI surfaces attached to a session) and enforces one-active-terminal-per-session. Multiple passive viewers can share a shell; only one accepts input. Powers multi-window and multi-tab layouts.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Install -->
+    <section id="install">
+      <div class="section-label">Install</div>
+      <h2>Two packages, optional peers</h2>
+      <p class="section-lead">Install the SDK for embedding, the CLI for shell wrapping — and only the peer deps for the subpaths you import.</p>
+
+      <div class="pkg-grid">
+        <div class="pkg-card highlight">
+          <div class="pkg-name">@vibecook/avocado-sdk</div>
+          <p>The library. Session manager, transports, and React surface via subpath exports.</p>
+          <div class="pkg-install">
+            <span>pnpm add @vibecook/avocado-sdk</span>
+            <button class="copy-btn" type="button" data-copy="pnpm add @vibecook/avocado-sdk">Copy</button>
+          </div>
+        </div>
+        <div class="pkg-card">
+          <div class="pkg-name">@vibecook/avocado</div>
+          <p>CLI binary <code style="color:var(--accent-bright);font-size:13px">avo</code> — wrap any command and sync to a host over IPC.</p>
+          <div class="pkg-install">
+            <span>npm i -g @vibecook/avocado</span>
+            <button class="copy-btn" type="button" data-copy="npm i -g @vibecook/avocado">Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin: 40px 0 14px">Peer dependencies by subpath</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Subpath</th>
+              <th>Required peer(s)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>@vibecook/avocado-sdk</code></td>
+              <td>None — core session manager + types only</td>
+            </tr>
+            <tr>
+              <td><code>…/node-pty</code></td>
+              <td><code>node-pty</code></td>
+            </tr>
+            <tr>
+              <td><code>…/transport-ipc</code></td>
+              <td>None — built-in Node networking</td>
+            </tr>
+            <tr>
+              <td><code>…/transport-truffle</code></td>
+              <td><code>@vibecook/truffle</code> ^0.6</td>
+            </tr>
+            <tr>
+              <td><code>…/react</code></td>
+              <td><code>react</code>, <code>xterm</code>, <code>@xterm/addon-fit</code> · WebGL adds <code>three</code>, R3F, <code>postprocessing</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="code-block" style="margin-top: 20px">
+        <div class="code-header">
+          <span>example · local PTY + mesh</span>
+          <button class="copy-btn" type="button" data-copy="pnpm add @vibecook/avocado-sdk node-pty @vibecook/truffle">Copy</button>
+        </div>
+        <pre><span class="cm"># Server-side app using local PTY + mesh sync</span>
+pnpm add @vibecook/avocado-sdk node-pty @vibecook/truffle</pre>
+      </div>
+
+      <p class="prose" style="margin-top: 20px">
+        <strong style="color:var(--text)">Runtimes:</strong> Node.js ≥ 18 · modern browsers (React subpath) · Electron (playground is Electron).
+      </p>
+    </section>
+
+    <!-- Quick start -->
+    <section id="quickstart">
+      <div class="section-label">Quick start</div>
+      <h2>Local PTY → React grid in three steps</h2>
+      <p class="section-lead">Spawn a session on the host, expose a backend, render with the grid. Mesh is one more block of wiring.</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-marker">1</div>
+          <div class="step-body">
+            <h3>Host — spawn &amp; register</h3>
+            <p>Electron main or Node process: create the session manager, spawn a local PTY, register it.</p>
+            <div class="code-block">
+              <div class="code-header"><span>main.ts</span></div>
+              <pre><span class="kw">import</span> {
+  <span class="fn">createPTYSessionManager</span>,
+  <span class="fn">createTerminalService</span>,
+} <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk'</span>;
+<span class="kw">import</span> { <span class="ty">LocalPTYSession</span> } <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/node-pty'</span>;
+<span class="kw">import</span> { spawn <span class="kw">as</span> ptySpawn } <span class="kw">from</span> <span class="str">'node-pty'</span>;
+
+<span class="kw">const</span> sessionManager = <span class="fn">createPTYSessionManager</span>();
+<span class="kw">const</span> terminalService = <span class="fn">createTerminalService</span>(sessionManager);
+
+<span class="kw">const</span> session = <span class="ty">LocalPTYSession</span>.<span class="fn">spawn</span>(
+  (opts) => <span class="fn">ptySpawn</span>(opts.command, opts.args, opts),
+  {
+    command: process.env.SHELL ?? <span class="str">'/bin/bash'</span>,
+    args: [],
+    cwd: process.<span class="fn">cwd</span>(),
+    cols: <span class="ty">120</span>,
+    rows: <span class="ty">32</span>,
+  },
+  { command: <span class="str">'bash'</span>, cwd: process.<span class="fn">cwd</span>() }
+);
+sessionManager.<span class="fn">registerSession</span>(session);</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-marker">2</div>
+          <div class="step-body">
+            <h3>Renderer — provider + grid</h3>
+            <p>Wrap your tree with <code style="font-size:13px;color:var(--accent-bright);background:var(--accent-soft);padding:1px 5px;border-radius:4px">AvocadoProvider</code> and drop in the terminal grid.</p>
+            <div class="code-block">
+              <div class="code-header"><span>App.tsx</span></div>
+              <pre><span class="kw">import</span> { <span class="ty">AvocadoProvider</span>, <span class="ty">TerminalGrid</span> } <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/react'</span>;
+
+<span class="kw">export function</span> <span class="fn">App</span>() {
+  <span class="kw">return</span> (
+    &lt;<span class="ty">AvocadoProvider</span> backend={electronBackend}&gt;
+      &lt;<span class="ty">TerminalGrid</span> /&gt;
+    &lt;/<span class="ty">AvocadoProvider</span>&gt;
+  );
+}</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-marker">3</div>
+          <div class="step-body">
+            <h3>Optional — mesh across devices</h3>
+            <p>Add the truffle transport and the same session appears on every peer.</p>
+            <div class="code-block">
+              <div class="code-header"><span>mesh.ts</span></div>
+              <pre><span class="kw">import</span> { <span class="fn">createMeshNode</span> } <span class="kw">from</span> <span class="str">'@vibecook/truffle'</span>;
+<span class="kw">import</span> {
+  <span class="ty">PTYMeshBridge</span>,
+  <span class="ty">PTYSyncStore</span>,
+  <span class="ty">RemoteSessionService</span>,
+} <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/transport-truffle'</span>;
+
+<span class="kw">const</span> node = <span class="kw">await</span> <span class="fn">createMeshNode</span>({
+  appId: <span class="str">'my-app'</span>,
+  deviceName: <span class="str">'laptop'</span>,
+});
+<span class="kw">const</span> bridge = <span class="kw">new</span> <span class="ty">PTYMeshBridge</span>({ node, sessionManager });
+<span class="kw">const</span> syncStore = <span class="kw">new</span> <span class="ty">PTYSyncStore</span>({ node });
+<span class="kw">const</span> service = <span class="kw">new</span> <span class="ty">RemoteSessionService</span>({
+  node, sessionManager, bridge, syncStore,
+});
+
+<span class="kw">await</span> bridge.<span class="fn">initialize</span>();
+<span class="kw">await</span> service.<span class="fn">enable</span>();</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Transports -->
+    <section id="transports">
+      <div class="section-label">Transports</div>
+      <h2>Pick the path your app needs</h2>
+      <p class="section-lead">Same session manager, different wires. Compose freely — local + IPC + mesh is a common Electron layout.</p>
+      <div class="transport-grid">
+        <article class="transport-card">
+          <span class="tag live">Live</span>
+          <h3>Local PTY</h3>
+          <p>Spawn shells in-process with <code style="font-size:12px;color:var(--accent-bright)">LocalPTYSession</code>. Ideal for Electron main and Node servers.</p>
+          <div class="path">@vibecook/avocado-sdk/node-pty</div>
+        </article>
+        <article class="transport-card">
+          <span class="tag live">Live</span>
+          <h3>IPC</h3>
+          <p>Unix Domain Socket (macOS/Linux) or Named Pipe (Windows). Bridge <code style="font-size:12px;color:var(--accent-bright)">avo</code> CLI sessions into a long-running host.</p>
+          <div class="path">@vibecook/avocado-sdk/transport-ipc</div>
+        </article>
+        <article class="transport-card">
+          <span class="tag live">Live</span>
+          <h3>Mesh (Truffle)</h3>
+          <p>Cross-device session sync over Tailscale. Peer-first routing, SyncedStore discovery, focus handoff.</p>
+          <div class="path">@vibecook/avocado-sdk/transport-truffle</div>
+        </article>
+      </div>
+
+      <div class="split" style="margin-top: 28px">
+        <div class="code-block">
+          <div class="code-header"><span>IPC host</span></div>
+          <pre><span class="kw">import</span> {
+  <span class="fn">createUDSServer</span>,
+  <span class="fn">createPTYIPCBridge</span>,
+} <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/transport-ipc'</span>;
+
+<span class="kw">const</span> udsServer = <span class="fn">createUDSServer</span>();
+udsServer.<span class="fn">start</span>({ socketPath: <span class="str">'/tmp/my-app.sock'</span> });
+
+<span class="kw">const</span> bridge = <span class="fn">createPTYIPCBridge</span>(sessionManager);
+bridge.<span class="fn">initialize</span>(udsServer);</pre>
+        </div>
+        <div class="code-block">
+          <div class="code-header"><span>CLI</span></div>
+          <pre><span class="cm"># Wrap your shell / any command</span>
+avo
+avo claude
+avo -- htop
+avo -s /tmp/my-app.sock bash
+
+<span class="cm"># Standalone: buffers until host connects</span>
+avo --no-sync bash</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- React -->
+    <section id="react">
+      <div class="section-label">React</div>
+      <h2>Components that ship the hard parts</h2>
+      <p class="section-lead">Provider wiring, grid layout, active-terminal switching, and two renderers — ready for production UIs.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Export</th>
+              <th>Role</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>AvocadoProvider</code></td>
+              <td>Root context — pass a <code>TerminalBackend</code> (Electron IPC, WebSocket, …)</td>
+            </tr>
+            <tr>
+              <td><code>TerminalGrid</code></td>
+              <td>Responsive grid of virtual terminals with active-tab handling</td>
+            </tr>
+            <tr>
+              <td><code>TerminalCard</code> / <code>VirtualTerminal</code></td>
+              <td>Single terminal surface</td>
+            </tr>
+            <tr>
+              <td><code>DefaultRenderer</code></td>
+              <td>xterm.js renderer (default)</td>
+            </tr>
+            <tr>
+              <td><code>WebGL / CRT</code></td>
+              <td>three.js + R3F path with optional CRT shader presets</td>
+            </tr>
+            <tr>
+              <td><code>usePTYSessions</code>, <code>useTerminalGrid</code>, …</td>
+              <td>Live session &amp; layout hooks</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="prose" style="margin-top: 16px">
+        Full signatures and types → <a href="api.html#react">API reference · React</a>
+      </p>
+    </section>
+
+    <!-- Packages / monorepo -->
+    <section id="packages">
+      <div class="section-label">Monorepo</div>
+      <h2>What ships in this repo</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Path</th>
+              <th>What it is</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>packages/sdk/</code></td>
+              <td>Source for <strong>@vibecook/avocado-sdk</strong></td>
+            </tr>
+            <tr>
+              <td><code>packages/cli/</code></td>
+              <td>Source for <strong>@vibecook/avocado</strong> (<code>avo</code>)</td>
+            </tr>
+            <tr>
+              <td><code>apps/playground/</code></td>
+              <td>Electron showcase — local + IPC + mesh in one app</td>
+            </tr>
+            <tr>
+              <td><code>docs/</code></td>
+              <td>This site — static HTML on GitHub Pages</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="code-block" style="margin-top: 20px">
+        <div class="code-header"><span>development</span></div>
+        <pre>pnpm install
+pnpm run typecheck
+pnpm run build
+pnpm run playground   <span class="cm"># Electron demo</span></pre>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <div class="cta-band">
+      <div class="cta-inner">
+        <h2>Build terminal UIs without the boilerplate</h2>
+        <p>Open the API reference, clone the playground, or drop the SDK into your next Electron or Node app.</p>
+        <div class="cta-actions">
+          <a class="btn btn-primary" href="api.html">Browse the API</a>
+          <a class="btn btn-ghost" href="https://github.com/jamesyong-42/avocado" target="_blank" rel="noopener">Star on GitHub</a>
+          <a class="btn btn-ghost" href="https://www.npmjs.com/package/@vibecook/avocado-sdk" target="_blank" rel="noopener">npm</a>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <span class="brand-mark" style="width:20px;height:20px;border-radius:5px" aria-hidden="true">
+            <svg viewBox="0 0 16 16" width="12" height="12" fill="none"><circle cx="8" cy="8" r="6" fill="#8fd14f"/><circle cx="6.2" cy="6.2" r="1.6" fill="#0a0c10" opacity=".35"/></svg>
+          </span>
+          Avocado · MIT · © 2026 James Yong
+        </div>
+        <ul class="footer-links">
+          <li><a href="api.html">API</a></li>
+          <li><a href="https://github.com/jamesyong-42/avocado">GitHub</a></li>
+          <li><a href="https://www.npmjs.com/package/@vibecook/avocado-sdk">npm</a></li>
+          <li><a href="https://github.com/jamesyong-42/avocado/blob/main/LICENSE">License</a></li>
+        </ul>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // Sticky nav style
+    const nav = document.getElementById('nav');
+    const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    // Mobile menu
+    const toggle = document.getElementById('navToggle');
+    const links = document.getElementById('navLinks');
+    toggle?.addEventListener('click', () => links.classList.toggle('open'));
+    links?.querySelectorAll('a').forEach(a => a.addEventListener('click', () => links.classList.remove('open')));
+
+    // Copy buttons
+    document.querySelectorAll('[data-copy]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const text = btn.getAttribute('data-copy') || '';
+        try {
+          await navigator.clipboard.writeText(text);
+          btn.classList.add('copied');
+          const prev = btn.textContent;
+          btn.textContent = 'Copied';
+          setTimeout(() => { btn.textContent = prev; btn.classList.remove('copied'); }, 1600);
+        } catch {
+          btn.textContent = 'Failed';
+        }
+      });
+    });
+  </script>
+</body>
+</html>

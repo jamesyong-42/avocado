@@ -20,24 +20,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v5
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Build SDK (so API docs pull from dist)
-        run: pnpm -C packages/sdk run build
-
-      - name: Build docs
-        run: pnpm run docs:build
+      - name: Stage static docs for GitHub Pages
+        run: |
+          mkdir -p _site
+          # Public site only — keep internal/ plans out of the deploy artifact
+          cp docs/index.html docs/api.html docs/.nojekyll _site/
 
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: docs/.vitepress/dist
+          path: _site
 
   deploy:
     needs: build

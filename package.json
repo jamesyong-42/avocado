@@ -2,7 +2,7 @@
   "name": "avocado-root",
   "private": true,
   "version": "0.1.0",
-  "description": "Terminal session sync library — local, IPC, and Tailscale mesh transports",
+  "description": "Terminal session sync library \u2014 local, IPC, and Tailscale mesh transports",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -20,8 +20,7 @@
     "typecheck": "tsc -b && pnpm -C apps/playground typecheck",
     "playground": "pnpm -C apps/playground dev",
     "build:all": "tsc -b && pnpm -C apps/playground run build",
-    "docs:dev": "pnpm -C docs dev",
-    "docs:build": "pnpm -C docs build"
+    "docs:dev": "python3 -m http.server 5173 --directory docs"
   },
   "devDependencies": {
     "typescript": "^5.5.0"

@@ -55,7 +55,7 @@ Inside this monorepo:
 | `packages/sdk/`         | Source for `@vibecook/avocado-sdk`                        |
 | `packages/cli/`         | Source for `@vibecook/avocado`                            |
 | `apps/playground/`      | Electron showcase of cross-device mesh sync               |
-| `docs/`                 | VitePress site deployed to GitHub Pages                   |
+| `docs/`                 | Static docs site (`index.html` + `api.html`) on GitHub Pages |
 
 ## Architecture
 
@@ -73,7 +73,7 @@ All transports implement `IPTYTransport`. `PTYSessionManager` consumes them unif
 
 ## Status
 
-**Pre-alpha.** APIs may change before `1.0`. See [`docs/`](https://jamesyong-42.github.io/avocado/) for the current guide.
+**Pre-alpha.** APIs may change before `1.0`. See the [docs site](https://jamesyong-42.github.io/avocado/) for the guide and API reference.
 
 ## Development
 
@@ -82,7 +82,7 @@ pnpm install
 pnpm run typecheck
 pnpm run build
 pnpm run playground   # run the Electron demo
-pnpm run docs:dev     # preview the docs site
+pnpm run docs:dev     # serve docs/ at http://localhost:5173
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for commit-message conventions and the release flow.
