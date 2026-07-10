@@ -18,6 +18,9 @@
     "dev": "tsc -b --watch",
     "clean": "tsc -b --clean && rm -rf packages/*/dist",
     "typecheck": "tsc -b && pnpm -C apps/playground typecheck",
+    "test": "pnpm -C packages/sdk test",
+    "test:unit": "pnpm -C packages/sdk test:unit",
+    "test:integration": "pnpm -C packages/sdk test:integration",
     "playground": "pnpm -C apps/playground dev",
     "build:all": "tsc -b && pnpm -C apps/playground run build",
     "docs:dev": "python3 -m http.server 5173 --directory docs"

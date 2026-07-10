@@ -15,6 +15,7 @@
 
 * **transport-truffle:** migrate to truffle 0.6 Peer-first API (RFC 022)
 * **transport-truffle:** create MeshPTYTransports for online peers (not only `wsConnected`); eager identity often leaves WS down after hello
+* **sdk:** add Vitest unit/integration suite (`pnpm test`) covering types, core, IPC wire, truffle transports (mocked), UDS, node-pty, and optional live mesh
 
 ## [0.2.1](https://github.com/jamesyong-42/avocado/compare/avocado-v0.2.0...avocado-v0.2.1) (2026-04-13)
 

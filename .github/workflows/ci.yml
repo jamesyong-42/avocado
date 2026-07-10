@@ -27,5 +27,11 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      - name: Test SDK
+        run: pnpm run test
+        env:
+          # Live mesh tests skip unless TRUFFLE_TEST_AUTHKEY is set in secrets.
+          AVOCADO_SKIP_MESH_LIVE: '1'
+
       - name: Build CLI
         run: pnpm -C packages/cli run build
