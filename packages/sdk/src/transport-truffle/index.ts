@@ -3,24 +3,22 @@
  *
  * Truffle mesh transport for avocado terminal sessions.
  *
- * This package ports vibe-ctl's PTY mesh-sync stack to avocado, rewritten
- * against `@vibecook/truffle`'s `NapiNode` API directly (no custom
- * `IMessageBus` abstraction). All five core files are complete:
+ * Peer-first against `@vibecook/truffle` ≥ 0.6 (RFC 022): hold `Peer`
+ * handles for live routing; use durable ULID only for SyncedStore discovery.
  *
- *   ✓ MeshPTYTransport      — IPTYTransport over a single truffle peer
+ *   ✓ MeshPTYTransport      — IPTYTransport bound to a Peer handle
  *   ✓ RelaySessionManager   — owner-side forwarders (local → viewer)
  *   ✓ PTYSyncStore          — session discovery via truffle's SyncedStore
- *   ✓ PTYMeshBridge         — wires peer lifecycle → transports → session manager
- *   ✓ RemoteSessionService  — orchestrator that composes the above and
- *                              dispatches owner-side PTY commands
+ *   ✓ PTYMeshBridge         — peer lifecycle → transports (keyed by peer.ref)
+ *   ✓ RemoteSessionService  — orchestrator + owner-side PTY dispatch
  *
  * Wiring cheat-sheet:
  *
- *   const node          = await createMeshNode({ appId: 'avocado-playground', deviceName: 'my-device', ... });
+ *   const node           = await createMeshNode({ appId: 'avocado-playground', deviceName: 'my-device', ... });
  *   const sessionManager = createPTYSessionManager();
- *   const bridge        = new PTYMeshBridge({ node, sessionManager });
- *   const syncStore     = new PTYSyncStore({ node });
- *   const service       = new RemoteSessionService({
+ *   const bridge         = new PTYMeshBridge({ node, sessionManager });
+ *   const syncStore      = new PTYSyncStore({ node });
+ *   const service        = new RemoteSessionService({
  *     node, sessionManager, bridge, syncStore, notifier: myNotifier,
  *   });
  *   await bridge.initialize();

@@ -5,12 +5,11 @@
  * to a shared `'avocado-pty-sessions'` store. Peers observe the store via
  * `onChange` and reconcile their proxy sessions accordingly.
  *
- * This replaces vibe-ctl's hand-rolled `SessionStoreSync` (which built the
- * same primitive out of NapiMessageBus broadcasts + application-level
- * versioning). Truffle's `SyncedStore` gives us:
- *   - per-device versioned slices
- *   - local_changed / peer_updated / peer_removed events
- *   - automatic catch-up for peers that join mid-session
+ * RFC 022: SyncedStore slices remain keyed by durable ULID (`deviceId`).
+ * Local `getLocalInfo().deviceId` is always a real ULID. Remote slice
+ * events carry the peer's ULID once identity is known. Live PTY *routing*
+ * uses Peer handles / `peer.ref` in `PTYMeshBridge` — this store only does
+ * discovery, not message routing.
  *
  * Wire shape stored per device:
  *
@@ -24,7 +23,7 @@
  */
 
 import { EventEmitter } from 'events';
-import type { NapiNode, NapiSyncedStore, NapiSlice, NapiStoreEvent } from '@vibecook/truffle';
+import type { MeshNode, NapiSyncedStore, NapiSlice, NapiStoreEvent } from '@vibecook/truffle';
 import type { RemoteSessionAnnounce } from '#types';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -47,15 +46,20 @@ export interface PTYSessionsSlice {
 }
 
 export interface PTYSyncStoreOptions {
-  /** Truffle node that owns the store. */
-  node: NapiNode;
+  /** Truffle mesh node (from `createMeshNode`). */
+  node: MeshNode;
   /** Override the default store id (useful for tests or isolated meshes). */
   storeId?: string;
 }
 
-/** Callback fired when a remote device updates or removes its slice. */
+/**
+ * Callback fired when a remote device updates or removes its slice.
+ *
+ * `deviceId` is the durable ULID of the peer (SyncedStore attribution),
+ * not a Tailscale id and not a process-local peer ref.
+ */
 export type RemoteSessionsChangeCallback = (
-  peerId: string,
+  deviceId: string,
   sessions: RemoteSessionAnnounce[] | null
 ) => void;
 
@@ -90,7 +94,7 @@ function coerceSlice(raw: unknown): PTYSessionsSlice {
  * API is `onRemoteChange(cb)` and the store's imperative methods.
  */
 export class PTYSyncStore extends EventEmitter {
-  private readonly node: NapiNode;
+  private readonly node: MeshNode;
   private readonly storeId: string;
   private store: NapiSyncedStore;
   private disposed = false;
@@ -101,17 +105,20 @@ export class PTYSyncStore extends EventEmitter {
     this.node = options.node;
     this.storeId = options.storeId ?? DEFAULT_PTY_STORE_ID;
     this.store = this.node.syncedStore(this.storeId);
-    // Cache the local device id so we can filter ourselves out of remote
+    // Local identity always has a real ULID (unlike peer.deviceId which
+    // may be null until hello). Cache it to filter ourselves out of remote
     // event dispatch without a round-trip per event.
-    // RFC 017 (truffle 0.4.0): NapiNodeIdentity exposes `deviceId` (stable
-    // ULID) instead of the old `id` field, which used to be the Tailscale
-    // stable node id.
     this.localDeviceId = this.node.getLocalInfo().deviceId;
   }
 
   /** Store identifier in use (for logs/debugging). */
   getStoreId(): string {
     return this.storeId;
+  }
+
+  /** This node's durable ULID (SyncedStore owner key for local slice). */
+  getLocalDeviceId(): string {
+    return this.localDeviceId;
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -148,7 +155,8 @@ export class PTYSyncStore extends EventEmitter {
   /**
    * Snapshot of all remote peers' session lists.
    *
-   * Keyed by deviceId (== truffle peer id). Excludes the local device.
+   * Keyed by durable deviceId (ULID). Excludes the local device.
+   * Use `PTYMeshBridge.getTransportByDeviceId` to resolve live routing.
    */
   async getRemoteSessions(): Promise<Map<string, RemoteSessionAnnounce[]>> {
     if (this.disposed) return new Map();
@@ -188,25 +196,25 @@ export class PTYSyncStore extends EventEmitter {
       // Ignore our own local writes — those are reflected synchronously.
       if (event.eventType === 'local_changed') return;
 
-      const peerId = event.deviceId;
-      if (!peerId) {
+      const deviceId = event.deviceId;
+      if (!deviceId) {
         console.warn(`${LOG_PREFIX} store event missing deviceId:`, event.eventType);
         return;
       }
       // Defensively ignore local-device echoes (shouldn't happen, but the
       // NAPI type doesn't forbid it).
-      if (peerId === this.localDeviceId) return;
+      if (deviceId === this.localDeviceId) return;
 
       if (event.eventType === 'peer_removed') {
-        callback(peerId, null);
-        this.emit('remoteChange', peerId, null);
+        callback(deviceId, null);
+        this.emit('remoteChange', deviceId, null);
         return;
       }
 
       if (event.eventType === 'peer_updated') {
         const slice = coerceSlice(event.data);
-        callback(peerId, slice.sessions);
-        this.emit('remoteChange', peerId, slice.sessions);
+        callback(deviceId, slice.sessions);
+        this.emit('remoteChange', deviceId, slice.sessions);
         return;
       }
 

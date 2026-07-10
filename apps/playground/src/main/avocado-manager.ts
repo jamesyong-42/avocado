@@ -40,10 +40,10 @@ const { Terminal: HeadlessXterm } = pkg;
 
 import {
   createMeshNode,
-  type NapiNode,
+  type MeshNode,
+  type MeshPeerEvent,
+  type Peer as MeshPeer,
   type NapiNodeIdentity,
-  type NapiPeer,
-  type NapiPeerEvent,
 } from '@vibecook/truffle';
 
 import {
@@ -162,10 +162,11 @@ const DEFAULT_COMMAND =
 
 export class AvocadoManager extends EventEmitter {
   // Truffle
-  private node: NapiNode | undefined;
+  private node: MeshNode | undefined;
   private status: NodeStatus = 'idle';
   private identity: NodeIdentity | undefined;
-  private peerCache: Map<string, NapiPeer> = new Map();
+  /** Interned Peer handles keyed by process-local peer.ref (RFC 022). */
+  private peerCache: Map<string, MeshPeer> = new Map();
 
   // Avocado core
   private sessionManager: PTYSessionManager | undefined;
@@ -185,8 +186,11 @@ export class AvocadoManager extends EventEmitter {
   // Headless xterm instances keyed by terminalId (for getScreenLines/getCursorPosition)
   private headlessTerminals: Map<string, HeadlessXtermType> = new Map();
 
-  // Remote session offers from peers, keyed by deviceId
-  private remoteSessionCache: Map<string, { deviceName: string; sessions: RemoteSessionAnnounce[] }> = new Map();
+  // Remote session offers from peers, keyed by durable deviceId (ULID)
+  private remoteSessionCache: Map<
+    string,
+    { deviceName: string; sessions: RemoteSessionAnnounce[] }
+  > = new Map();
 
   // Forwarding listeners (held so we can detach during teardown)
   private sessionMgrHandlers:
@@ -278,17 +282,17 @@ export class AvocadoManager extends EventEmitter {
         onAuthRequired: (url: string) => {
           this.emit('authRequired', url);
         },
-        onPeerChange: (event: NapiPeerEvent) => {
+        onPeerChange: (event: MeshPeerEvent) => {
           this.handlePeerChange(event);
         },
       });
       this.node = node;
       this.identity = toNodeIdentity(node.getLocalInfo());
 
-      // Seed the peer cache.
+      // Seed the peer cache (keyed by peer.ref — never deviceId).
       const initialPeers = await node.getPeers();
       for (const peer of initialPeers) {
-        this.peerCache.set(peer.deviceId, peer);
+        this.peerCache.set(peer.ref, peer);
       }
 
       // 3. Create the core session/terminal stack and wire the proxy
@@ -343,14 +347,16 @@ export class AvocadoManager extends EventEmitter {
       await bridge.initialize();
       await service.enable();
 
-      // Subscribe to remote session changes from the sync store
-      syncStore.onRemoteChange((peerId, sessions) => {
+      // Subscribe to remote session changes from the sync store.
+      // Keys are durable ULIDs (SyncedStore attribution), not peer refs.
+      syncStore.onRemoteChange((deviceId, sessions) => {
         if (sessions === null) {
-          this.remoteSessionCache.delete(peerId);
+          this.remoteSessionCache.delete(deviceId);
         } else {
-          const peer = this.peerCache.get(peerId);
-          const deviceName = peer?.deviceName ?? peerId.slice(0, 8);
-          this.remoteSessionCache.set(peerId, { deviceName, sessions });
+          const peer = this.findPeerByDeviceId(deviceId);
+          const deviceName =
+            peer?.displayName ?? peer?.deviceName ?? deviceId.slice(0, 8);
+          this.remoteSessionCache.set(deviceId, { deviceName, sessions });
         }
         this.emitRemoteSessionsChanged();
       });
@@ -390,7 +396,7 @@ export class AvocadoManager extends EventEmitter {
     const peers = await this.node.getPeers();
     this.peerCache.clear();
     for (const peer of peers) {
-      this.peerCache.set(peer.deviceId, peer);
+      this.peerCache.set(peer.ref, peer);
     }
     return peers.map(toPeerInfo);
   }
@@ -604,17 +610,22 @@ export class AvocadoManager extends EventEmitter {
 
   // ─── Internal: peer events ───────────────────────────────────────────────
 
-  private handlePeerChange(event: NapiPeerEvent): void {
+  private handlePeerChange(event: MeshPeerEvent): void {
     // 'auth_required' is surfaced through `onAuthRequired` on the options
     // object — skip it here to avoid double-firing.
-    if (event.eventType === 'auth_required') {
+    if (event.type === 'auth_required') {
       return;
     }
 
     if (event.peer) {
-      this.peerCache.set(event.peerId, event.peer);
-    } else if (event.eventType === 'left') {
-      this.peerCache.delete(event.peerId);
+      this.peerCache.set(event.peer.ref, event.peer);
+    } else if (event.type === 'left' && event.peerId) {
+      // Drop any cached handle whose tailscale id matches (ref may be unknown).
+      for (const [ref, peer] of this.peerCache) {
+        if (peer.tailscaleId === event.peerId || ref === event.peerId) {
+          this.peerCache.delete(ref);
+        }
+      }
     }
     this.emitPeersChanged();
   }
@@ -622,6 +633,13 @@ export class AvocadoManager extends EventEmitter {
   private emitPeersChanged(): void {
     const peers = Array.from(this.peerCache.values()).map(toPeerInfo);
     this.emit('peersChanged', peers);
+  }
+
+  private findPeerByDeviceId(deviceId: string): MeshPeer | undefined {
+    for (const peer of this.peerCache.values()) {
+      if (peer.deviceId === deviceId) return peer;
+    }
+    return undefined;
   }
 
   // ─── Internal: session/terminal event forwarding ────────────────────────
@@ -883,8 +901,10 @@ function toNodeIdentity(info: NapiNodeIdentity): NodeIdentity {
   return out;
 }
 
-function toPeerInfo(peer: NapiPeer): PeerInfo {
+function toPeerInfo(peer: MeshPeer): PeerInfo {
   const out: PeerInfo = {
+    peerRef: peer.ref,
+    displayName: peer.displayName,
     deviceId: peer.deviceId,
     deviceName: peer.deviceName,
     tailscaleId: peer.tailscaleId,
@@ -893,8 +913,8 @@ function toPeerInfo(peer: NapiPeer): PeerInfo {
     wsConnected: peer.wsConnected,
     connectionType: peer.connectionType,
   };
-  if (peer.os !== undefined) out.os = peer.os;
-  if (peer.lastSeen !== undefined) out.lastSeen = peer.lastSeen;
+  if (peer.os != null) out.os = peer.os;
+  if (peer.lastSeen != null) out.lastSeen = peer.lastSeen;
   return out;
 }
 

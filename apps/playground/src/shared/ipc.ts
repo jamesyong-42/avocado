@@ -49,10 +49,28 @@ export interface NodeStatusEvent {
   error?: string;
 }
 
-/** A peer on the mesh as exposed to the renderer. */
+/**
+ * A peer on the mesh as exposed to the renderer (RFC 022 / truffle ≥ 0.6).
+ *
+ * `peerRef` is the process-local primary key for lists and routing.
+ * `deviceId` is the durable ULID once identity is known (null until then).
+ */
 export interface PeerInfo {
-  deviceId: string;
-  deviceName: string;
+  /**
+   * Process-local handle token `{tailscaleId}:{generation}`.
+   * Primary key for peer lists — do not persist across restarts.
+   */
+  peerRef: string;
+  /** Best UI label (identity name → hostname slug → short id). */
+  displayName: string;
+  /**
+   * Durable ULID once the peer's hello is seen; null until then.
+   * Persistence / debug only — not a routing key.
+   */
+  deviceId: string | null;
+  /** Human-readable device name from the peer's hello, if known. */
+  deviceName: string | null;
+  /** Tailscale stable ID. Advanced / diagnostics. */
   tailscaleId: string;
   ip: string;
   online: boolean;

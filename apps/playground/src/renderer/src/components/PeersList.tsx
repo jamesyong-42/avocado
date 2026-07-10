@@ -2,8 +2,8 @@
  * PeersList — shows mesh peers discovered via truffle.
  *
  * Pulls the initial list from `window.avocado.peers.list()` then stays in
- * sync via `peers.onChanged`. Renders a compact list with device name +
- * connection state.
+ * sync via `peers.onChanged`. Renders a compact list with display name +
+ * connection state (RFC 022 peer handles).
  */
 
 import { useEffect, useState, type JSX } from 'react';
@@ -39,8 +39,15 @@ export function PeersList(): JSX.Element {
       ) : (
         <ul>
           {peers.map((peer) => (
-            <li key={peer.deviceId} title={peer.deviceId}>
-              <strong>{peer.deviceName}</strong>
+            <li
+              key={peer.peerRef}
+              title={
+                peer.deviceId
+                  ? `deviceId ${peer.deviceId}`
+                  : `identity pending · ${peer.tailscaleId}`
+              }
+            >
+              <strong>{peer.displayName}</strong>
               <div
                 style={{
                   fontSize: 10,
@@ -49,6 +56,7 @@ export function PeersList(): JSX.Element {
               >
                 {peer.wsConnected ? 'WS connected' : 'offline'} ·{' '}
                 {peer.connectionType}
+                {peer.deviceId ? '' : ' · id pending'}
               </div>
             </li>
           ))}

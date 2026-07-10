@@ -10,22 +10,20 @@
  *   Owner (this device) → Viewer (remote peer)
  *     sendOutput, sendResized, sendSessionEnded, sendFocusChanged
  *
- * The transport subscribes to the shared `'pty'` namespace exactly once at
- * construction and filters incoming messages by `msg.from === this.peerId`.
- * Outgoing messages are encoded as `Buffer.from(JSON.stringify(obj))` where
- * `obj.type` is a `WS_PTY_MESSAGE_TYPES` discriminator and the rest of the
- * object carries the message-specific fields. Truffle decodes the JSON on
- * the receive side automatically — `msg.payload` is already a plain JS
- * object.
+ * RFC 022 (truffle ≥ 0.6): the transport holds an interned `Peer` handle.
+ * Outbound traffic uses `peer.send(...)` (generation-checked routing).
+ * Inbound messages are filtered by matching `msg.from` against the same
+ * peer (WhoIs-verified Tailscale attribution, not a self-declared ULID).
  *
- * Ported from vibe-ctl's
- *   packages/desktop/src/main/services/foundation/pty/transports/mesh-pty-transport.ts
- * and rewritten to talk to `NapiNode` directly instead of an `IMessageBus`
- * abstraction.
+ * Ported from vibe-ctl and rewritten for `@vibecook/truffle`'s MeshNode API.
  */
 
 import { EventEmitter } from 'events';
-import type { NapiNode, NapiNamespacedMessage } from '@vibecook/truffle';
+import type {
+  MeshNode,
+  MeshNamespacedMessage,
+  Peer,
+} from '@vibecook/truffle';
 import type {
   IPTYTransport,
   TransportType,
@@ -58,12 +56,13 @@ export const PTY_NAMESPACE = 'pty';
 // ═══════════════════════════════════════════════════════════════════════════
 
 export interface MeshPTYTransportOptions {
-  /** Truffle node that owns the underlying connection. */
-  node: NapiNode;
-  /** Stable peer ID this transport targets. */
-  peerId: string;
-  /** Optional display name (defaults to peerId). */
-  peerName?: string;
+  /** Truffle mesh node (from `createMeshNode`). */
+  node: MeshNode;
+  /**
+   * Interned Peer handle this transport targets (RFC 022).
+   * Routing and message filtering use the handle — never a bare deviceId.
+   */
+  peer: Peer;
   /**
    * Initial connection state.
    * Defaults to true — the bridge only constructs a transport once the peer
@@ -98,31 +97,28 @@ interface PTYWireMessage {
  * directions for relay mode.
  */
 export class MeshPTYTransport extends EventEmitter implements IPTYTransport {
-  private readonly _node: NapiNode;
-  private readonly _peerId: string;
-  private readonly _peerName: string;
+  private readonly _node: MeshNode;
+  private readonly _peer: Peer;
   private _isReady: boolean;
   private _disposed: boolean = false;
-  private _messageHandler: (msg: NapiNamespacedMessage) => void;
+  private _messageHandler: (msg: MeshNamespacedMessage) => void;
 
   constructor(options: MeshPTYTransportOptions) {
     super();
     this._node = options.node;
-    this._peerId = options.peerId;
-    this._peerName = options.peerName ?? options.peerId;
+    this._peer = options.peer;
     this._isReady = options.isConnected ?? true;
 
     // Install a single namespace listener at construction time. Truffle's
     // `onMessage` is global per namespace — the callback fires for every
-    // message on 'pty' regardless of sender — so we filter by `msg.from`
-    // against our peerId to only process messages from our peer.
+    // message on 'pty' regardless of sender — so we filter by matching
+    // `msg.from` against our Peer handle.
     //
-    // Note: `NapiNode.onMessage` returns void (see @vibecook/truffle-native
-    // index.d.ts); there is no explicit unsubscribe primitive. We guard
-    // against post-dispose dispatch with the `_disposed` flag instead.
-    this._messageHandler = (msg: NapiNamespacedMessage): void => {
+    // Note: `onMessage` returns void; there is no explicit unsubscribe.
+    // We guard against post-dispose dispatch with the `_disposed` flag.
+    this._messageHandler = (msg: MeshNamespacedMessage): void => {
       if (this._disposed) return;
-      if (msg.from !== this._peerId) return;
+      if (!this.matchesFrom(msg.from)) return;
       this.handleIncoming(msg);
     };
     this._node.onMessage(PTY_NAMESPACE, this._messageHandler);
@@ -132,24 +128,39 @@ export class MeshPTYTransport extends EventEmitter implements IPTYTransport {
   // Identity
   // ─────────────────────────────────────────────────────────────────────────
 
+  /**
+   * Process-local peer ref (`{tailscaleId}:{generation}`). Used as the
+   * transport id so `PTYSessionManager` can look us up by peer.
+   */
   get transportId(): string {
-    // The peer ID is the stable mesh identifier — also the transportId so
-    // `PTYSessionManager` can look us up by peerId when routing.
-    return this._peerId;
+    return this._peer.ref;
   }
 
   get transportType(): TransportType {
     return 'ws';
   }
 
-  /** Convenience accessor — same as `transportId`, kept for clarity. */
+  /** Interned Peer handle this transport is bound to. */
+  get peer(): Peer {
+    return this._peer;
+  }
+
+  /**
+   * Stable routing key for this transport (`peer.ref`). Prefer the `peer`
+   * handle for networking; this string is for maps / IPC.
+   */
   get peerId(): string {
-    return this._peerId;
+    return this._peer.ref;
   }
 
   /** Human-readable name for logs and the UI. */
   get peerName(): string {
-    return this._peerName;
+    return this._peer.displayName;
+  }
+
+  /** Durable ULID once known; null until identity hello (RFC 022). */
+  get deviceId(): string | null {
+    return this._peer.deviceId;
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -188,16 +199,30 @@ export class MeshPTYTransport extends EventEmitter implements IPTYTransport {
   // ─────────────────────────────────────────────────────────────────────────
 
   /**
+   * Whether an inbound `msg.from` belongs to this transport's peer.
+   *
+   * With `createMeshNode`, `from` is usually an interned `Peer` (same
+   * instance as `getPeers()`). Fallback string form is the WhoIs-verified
+   * Tailscale id.
+   */
+  private matchesFrom(from: MeshNamespacedMessage['from']): boolean {
+    if (typeof from === 'string') {
+      return from === this._peer.tailscaleId || from === this._peer.ref;
+    }
+    return from.ref === this._peer.ref || from.tailscaleId === this._peer.tailscaleId;
+  }
+
+  /**
    * Dispatch a message already filtered to this peer.
    *
    * `msg.payload` is a JSON object truffle decoded on the receive side
    * (not a Buffer) — calling `JSON.parse` on it throws. We cast through
    * `PTYWireMessage` and pick out the `type` discriminator.
    */
-  private handleIncoming(msg: NapiNamespacedMessage): void {
+  private handleIncoming(msg: MeshNamespacedMessage): void {
     const payload = msg.payload as PTYWireMessage | null | undefined;
     if (!payload || typeof payload !== 'object' || typeof payload.type !== 'string') {
-      console.warn(`${LOG_PREFIX} [${this._peerId}] dropped malformed payload`);
+      console.warn(`${LOG_PREFIX} [${this.peerId}] dropped malformed payload`);
       return;
     }
 
@@ -265,20 +290,23 @@ export class MeshPTYTransport extends EventEmitter implements IPTYTransport {
    * Serialize and publish a wire message to this transport's peer.
    *
    * Sends are fire-and-forget from the IPTYTransport contract's POV (the
-   * signature is synchronous), but `NapiNode.send` returns a Promise. We
-   * dispatch it and log any rejection — errors here are mesh-layer issues
-   * (peer gone, socket dead) and the consumer recovers via the `'disconnected'`
-   * event, not by awaiting the send.
+   * signature is synchronous), but Peer.send returns a Promise. We dispatch
+   * it and log any rejection — errors here are mesh-layer issues (peer gone,
+   * socket dead) and the consumer recovers via the `'disconnected'` event.
    */
   private sendWire(message: PTYWireMessage): void {
     if (!this.isReady) {
-      console.warn(`${LOG_PREFIX} [${this._peerId}] send dropped — transport not ready (type=${message.type})`);
+      console.warn(
+        `${LOG_PREFIX} [${this.peerId}] send dropped — transport not ready (type=${message.type})`
+      );
       return;
     }
     const buffer = Buffer.from(JSON.stringify(message));
-    void this._node.send(this._peerId, PTY_NAMESPACE, buffer).catch((err) => {
+    // Prefer the Peer handle (generation-checked route). MeshNode.send also
+    // accepts PeerLike if we ever need the node path.
+    void this._peer.send(PTY_NAMESPACE, buffer).catch((err) => {
       console.warn(
-        `${LOG_PREFIX} [${this._peerId}] send failed (type=${message.type}):`,
+        `${LOG_PREFIX} [${this.peerId}] send failed (type=${message.type}):`,
         err instanceof Error ? err.message : err
       );
     });
@@ -312,10 +340,12 @@ export class MeshPTYTransport extends EventEmitter implements IPTYTransport {
   /**
    * NOTE on `targetDeviceId`: the `IPTYTransport` signature allows routing
    * output to an arbitrary target, but `MeshPTYTransport` is already bound
-   * to a single peer (`this._peerId`). We honor the parameter for API
+   * to a single peer (`this._peer`). We honor the parameter for API
    * symmetry with the interface but log a warning if it disagrees — callers
-   * should look up the right transport from `PTYMeshBridge.getTransport(peerId)`
-   * and send there, not re-route via an arbitrary transport.
+   * should look up the right transport from `PTYMeshBridge` and send there.
+   *
+   * The historical name "targetDeviceId" now means any peer key we use
+   * (typically `peer.ref`, sometimes a durable ULID).
    */
   sendOutput(sessionId: string, data: Buffer, targetDeviceId: string): void {
     this.assertTargetMatches(targetDeviceId, 'sendOutput');
@@ -338,10 +368,14 @@ export class MeshPTYTransport extends EventEmitter implements IPTYTransport {
     this.sendWire({ type: WS_PTY_MESSAGE_TYPES.FOCUS_CHANGED, sessionId, focused });
   }
 
-  private assertTargetMatches(targetDeviceId: string, method: string): void {
-    if (targetDeviceId !== this._peerId) {
+  private assertTargetMatches(targetKey: string, method: string): void {
+    const matches =
+      targetKey === this._peer.ref ||
+      targetKey === this._peer.tailscaleId ||
+      (this._peer.deviceId !== null && targetKey === this._peer.deviceId);
+    if (!matches) {
       console.warn(
-        `${LOG_PREFIX} [${this._peerId}] ${method} called with targetDeviceId=${targetDeviceId} — ` +
+        `${LOG_PREFIX} [${this.peerId}] ${method} called with target=${targetKey} — ` +
           `transport is bound to a different peer. Sending to this transport's peer anyway.`
       );
     }

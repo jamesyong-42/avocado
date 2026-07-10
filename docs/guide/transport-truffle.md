@@ -16,19 +16,21 @@
 │PTYMeshBridge│ │PTYSyncStore │ │ RelaySessionMgr │
 └─────┬───────┘ └─────┬───────┘ └─────────────────┘
       │               │
-      │ onPeerChange  │ syncedStore('avocado-pty-sessions')
+      │ Peer handles  │ syncedStore (ULID slices)
       │               │
 ┌─────▼───────────────────────────────────┐
-│             @vibecook/truffle           │
-│          (NapiNode + SyncedStore)       │
+│     @vibecook/truffle ≥ 0.6 (RFC 022)   │
+│   MeshNode + Peer + SyncedStore         │
 └─────────────────────────────────────────┘
 ```
 
-- **MeshPTYTransport** — one per peer, implements `IPTYTransport`
-- **PTYMeshBridge** — owns transport lifecycle (create on `ws_connected`, tear down on `ws_disconnected`)
-- **PTYSyncStore** — session discovery via truffle's `SyncedStore` primitive
+- **MeshPTYTransport** — one per peer, holds a `Peer` handle, implements `IPTYTransport`
+- **PTYMeshBridge** — owns transport lifecycle (create for **online** peers — not gated on `wsConnected`; tear down on `left`); primary key is `peer.ref`, secondary index by durable ULID for store reconciliation
+- **PTYSyncStore** — session discovery via truffle's `SyncedStore` (still keyed by durable `deviceId`)
 - **RelaySessionManager** — per-(session, viewer) forwarders that copy `output` / `resized` / `exit` from a local session to a viewer's transport
 - **RemoteSessionService** — orchestrator that ties the above together and dispatches owner-side PTY commands
+
+Requires **`@vibecook/truffle@^0.6.0`** (Peer-first API). Live PTY routing uses Peer handles; do not key maps by `deviceId` for messaging.
 
 ## Minimal wiring
 
@@ -77,9 +79,9 @@ Every PTY message on the mesh shares this shape:
 }
 ```
 
-`type` values come from `WS_PTY_MESSAGE_TYPES` in `@vibecook/avocado-sdk/types`. The object is JSON-serialized to a `Buffer` and sent via `node.send(peerId, 'pty', buf)`. On the receive side, truffle decodes the JSON at the NAPI boundary — `msg.payload` is already a plain JS object.
+`type` values come from `WS_PTY_MESSAGE_TYPES` in `@vibecook/avocado-sdk/types`. The object is JSON-serialized to a `Buffer` and sent via the bound Peer handle (`peer.send('pty', buf)`). On the receive side, truffle decodes the JSON at the NAPI boundary — `msg.payload` is already a plain JS object — and `msg.from` is an interned `Peer` (WhoIs-verified Tailscale attribution).
 
-Session discovery is **not** message-based; it goes through `PTYSyncStore`, which publishes per-device slices of `{ sessions: RemoteSessionAnnounce[]; updatedAt: number }` via truffle's `SyncedStore`.
+Session discovery is **not** message-based; it goes through `PTYSyncStore`, which publishes per-device slices of `{ sessions: RemoteSessionAnnounce[]; updatedAt: number }` via truffle's `SyncedStore` (keyed by durable ULID).
 
 ## Out of scope for v0.1
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased]
+
+### ⚠ BREAKING CHANGES
+
+* **transport-truffle** requires `@vibecook/truffle@^0.6.0` (RFC 022 Peer-first API).
+  * Live PTY routing uses interned `Peer` handles / `peer.ref`, not `deviceId` strings.
+  * `MeshPTYTransport` is constructed with `{ node, peer }` (Peer handle), not `{ peerId, peerName }`.
+  * `PTYMeshBridge.getTransport(peerRef)` keys by process-local peer ref; use `getTransportByDeviceId(ulid)` for SyncedStore reconciliation.
+  * Inbound `msg.from` is a `Peer` (or Tailscale id string fallback) — WhoIs-verified, never a self-declared ULID fallback.
+  * Playground `PeerInfo` now exposes `peerRef`, `displayName`, and `deviceId: string | null`.
+
+### Features
+
+* **transport-truffle:** migrate to truffle 0.6 Peer-first API (RFC 022)
+* **transport-truffle:** create MeshPTYTransports for online peers (not only `wsConnected`); eager identity often leaves WS down after hello
+
 ## [0.2.1](https://github.com/jamesyong-42/avocado/compare/avocado-v0.2.0...avocado-v0.2.1) (2026-04-13)
 
 

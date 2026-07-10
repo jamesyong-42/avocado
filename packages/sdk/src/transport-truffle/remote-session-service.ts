@@ -13,27 +13,18 @@
  * local sessions and (optionally) an `IPeerNotifier` for surfacing focus
  * changes to a renderer.
  *
- * Ported from vibe-ctl's
- *   packages/desktop/src/main/services/foundation/pty/remote-sessions/remote-session-service.ts
- * and slimmed per plan phase F:
- *
- *   DROPPED (v0.1 scope, plan D7):
- *     - `forwardFocusToCli` — no IPC transport awareness here
- *     - `handleCreateSession` spawn path — remote spawning out of scope;
- *       we respond with CREATE_FAILED instead
- *     - Primary device election
- *     - Focus conflict resolution (cooperative / last-write-wins)
- *     - All `BrowserWindow` / `electron` imports — replaced by IPeerNotifier
- *
- *   REPLACED:
- *     - `SessionStoreSync` → `PTYSyncStore` (uses truffle's native primitive)
- *     - `MessageBus.subscribe('pty', ...)` → `node.onMessage('pty', ...)`
+ * RFC 022 (truffle ≥ 0.6):
+ *   - Inbound `msg.from` is a Peer handle (or Tailscale id string fallback).
+ *   - Live PTY routing keys on `peer.ref` via the bridge.
+ *   - SyncedStore discovery keys on durable ULID; the bridge secondary index
+ *     maps deviceId → transport once identity is known.
  */
 
 import { EventEmitter } from 'events';
 import type {
-  NapiNode,
-  NapiNamespacedMessage,
+  MeshNode,
+  MeshNamespacedMessage,
+  Peer,
 } from '@vibecook/truffle';
 import type { PTYSessionManager } from '#core';
 import type { ITerminalStoreSync } from '#core';
@@ -47,10 +38,10 @@ import type {
 import { WS_PTY_MESSAGE_TYPES, getOriginalId } from '#types';
 
 import { PTY_NAMESPACE } from './mesh-pty-transport.js';
+import type { MeshPTYTransport } from './mesh-pty-transport.js';
 import type { PTYMeshBridge } from './pty-mesh-bridge.js';
 import type { PTYSyncStore } from './pty-sync-store.js';
 import {
-  RelaySessionManager,
   createRelaySessionManager,
   type IRelaySessionManager,
 } from './relay-session-manager.js';
@@ -71,14 +62,18 @@ export interface IPeerNotifier {
     sessionId: string,
     focused: boolean,
     source: 'local' | 'remote',
+    /** Peer ref, deviceId, or other stable label for the remote device. */
     deviceId?: string
   ): void;
-  /** The set of sessions a peer is sharing changed. */
+  /**
+   * The set of sessions a peer is sharing changed.
+   * `deviceId` is the durable ULID from SyncedStore when known.
+   */
   remoteSessionsChanged(deviceId: string, count: number): void;
 }
 
 export interface RemoteSessionServiceOptions {
-  node: NapiNode;
+  node: MeshNode;
   sessionManager: PTYSessionManager;
   bridge: PTYMeshBridge;
   syncStore: PTYSyncStore;
@@ -91,8 +86,9 @@ export interface RemoteSessionServiceOptions {
 export interface RemoteSessionServiceEvents {
   enabled: () => void;
   disabled: () => void;
-  deviceConnected: (peerId: string) => void;
-  deviceDisconnected: (peerId: string) => void;
+  /** Fired with process-local peer ref when a transport is created. */
+  deviceConnected: (peerRef: string) => void;
+  deviceDisconnected: (peerRef: string) => void;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -112,7 +108,7 @@ interface PTYWirePayload {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export class RemoteSessionService extends EventEmitter {
-  private readonly node: NapiNode;
+  private readonly node: MeshNode;
   private readonly sessionManager: PTYSessionManager;
   private readonly bridge: PTYMeshBridge;
   private readonly syncStore: PTYSyncStore;
@@ -126,8 +122,8 @@ export class RemoteSessionService extends EventEmitter {
   // detach them on `disable()`.
   private readonly sessionDiscoveredHandler: () => void;
   private readonly sessionLostHandler: () => void;
-  private readonly bridgeTransportCreatedHandler: (peerId: string) => void;
-  private readonly bridgeTransportRemovedHandler: (peerId: string) => void;
+  private readonly bridgeTransportCreatedHandler: (peerRef: string) => void;
+  private readonly bridgeTransportRemovedHandler: (peerRef: string) => void;
 
   constructor(options: RemoteSessionServiceOptions) {
     super();
@@ -149,21 +145,27 @@ export class RemoteSessionService extends EventEmitter {
 
     // Mirror bridge connect/disconnect as RemoteSessionService events and
     // clean up any relays when a peer vanishes.
-    this.bridgeTransportCreatedHandler = (peerId: string): void => {
-      this.emit('deviceConnected', peerId);
+    this.bridgeTransportCreatedHandler = (peerRef: string): void => {
+      this.emit('deviceConnected', peerRef);
       // If the peer already has a published slice in the sync store,
-      // reconcile their sessions immediately. `getRemoteSessions` returns
-      // a Map<peerId, sessions>; async but cheap.
+      // reconcile their sessions immediately. Store is keyed by ULID.
+      const transport = this.bridge.getTransport(peerRef);
+      const deviceId = transport?.deviceId;
+      if (!deviceId) {
+        // Identity pending — store reconciliation will run when the peer's
+        // slice arrives (or after identity + transportCreated races settle).
+        return;
+      }
       void this.syncStore.getRemoteSessions().then((map) => {
-        const sessions = map.get(peerId);
+        const sessions = map.get(deviceId);
         if (sessions) {
-          this.handleRemoteSessionsChanged(peerId, sessions);
+          this.handleRemoteSessionsChanged(deviceId, sessions);
         }
       });
     };
-    this.bridgeTransportRemovedHandler = (peerId: string): void => {
-      this.relayManager.cleanupForDevice(peerId);
-      this.emit('deviceDisconnected', peerId);
+    this.bridgeTransportRemovedHandler = (peerRef: string): void => {
+      this.relayManager.cleanupForDevice(peerRef);
+      this.emit('deviceDisconnected', peerRef);
     };
   }
 
@@ -193,27 +195,17 @@ export class RemoteSessionService extends EventEmitter {
       return;
     }
 
-    // 1. Subscribe to the 'pty' namespace for owner-side messages. Each
-    //    `MeshPTYTransport` already subscribes for its own viewer-side
-    //    dispatch; this subscription handles owner-side commands
-    //    (SUBSCRIBE, INPUT, RESIZE, KILL, FOCUS_CHANGED, CREATE_SESSION).
-    //
-    //    NOTE on double-delivery: truffle delivers every 'pty' message to
-    //    every `onMessage('pty', ...)` subscriber on this node, so the
-    //    transport handler AND the service handler both see every
-    //    message. That's intentional — the transport re-emits viewer-side
-    //    OUTPUT/RESIZED/etc as its own events, while the service
-    //    dispatches owner-side commands. The two sets of message types
-    //    don't overlap meaningfully so neither side double-handles.
-    this.node.onMessage(PTY_NAMESPACE, (msg: NapiNamespacedMessage) => {
+    // 1. Subscribe to the 'pty' namespace for owner-side messages.
+    this.node.onMessage(PTY_NAMESPACE, (msg: MeshNamespacedMessage) => {
       if (!this.enabled) return;
       this.handleIncomingPtyMessage(msg);
     });
 
     // 2. Listen for remote session slice changes and reconcile proxies.
-    this.syncStore.onRemoteChange((peerId, sessions) => {
+    //    Callback `deviceId` is the durable ULID from SyncedStore.
+    this.syncStore.onRemoteChange((deviceId, sessions) => {
       if (!this.enabled) return;
-      this.handleRemoteSessionsChanged(peerId, sessions);
+      this.handleRemoteSessionsChanged(deviceId, sessions);
     });
 
     // 3. Listen for local session discovery/loss so we can republish.
@@ -253,8 +245,8 @@ export class RemoteSessionService extends EventEmitter {
     }
 
     // NOTE: we don't unsubscribe from `node.onMessage` or
-    // `syncStore.onRemoteChange` because truffle v0.3.24 doesn't expose
-    // an unsubscribe primitive. The `this.enabled` guard short-circuits
+    // `syncStore.onRemoteChange` because truffle doesn't expose an
+    // unsubscribe primitive. The `this.enabled` guard short-circuits
     // dispatch until the next `enable()`.
 
     console.log(`${LOG_PREFIX} disabled`);
@@ -304,11 +296,19 @@ export class RemoteSessionService extends EventEmitter {
   // Incoming PTY messages (owner-side handlers)
   // ─────────────────────────────────────────────────────────────────────────
 
-  private handleIncomingPtyMessage(msg: NapiNamespacedMessage): void {
-    const fromPeerId = msg.from;
-    if (!fromPeerId) {
+  private handleIncomingPtyMessage(msg: MeshNamespacedMessage): void {
+    const from = msg.from;
+    if (!from) {
       console.warn(`${LOG_PREFIX} pty message from unknown peer`);
       return;
+    }
+
+    const transport = this.resolveTransportFromMessage(from);
+    if (!transport) {
+      // Viewer-side messages (OUTPUT, etc.) land here too but belong to a
+      // MeshPTYTransport subscription — or the peer has no transport yet.
+      // Only owner-side types need a transport; unknown senders are ignored
+      // after type check below.
     }
 
     const payload = msg.payload as PTYWirePayload | null | undefined;
@@ -316,38 +316,42 @@ export class RemoteSessionService extends EventEmitter {
       return;
     }
 
+    // Viewer keys for relay bookkeeping: prefer peer.ref for generation
+    // safety; fall back to the raw string (Tailscale id).
+    const viewerKey = transport?.peerId ?? this.fromKey(from);
+
     switch (payload.type) {
       case WS_PTY_MESSAGE_TYPES.SUBSCRIBE: {
-        this.handleSubscribe(fromPeerId, payload as unknown as WSSubscribePayload);
+        this.handleSubscribe(viewerKey, transport, payload as unknown as WSSubscribePayload);
         return;
       }
       case WS_PTY_MESSAGE_TYPES.UNSUBSCRIBE: {
         const p = payload as unknown as { sessionId: string };
-        this.handleUnsubscribe(fromPeerId, p);
+        this.handleUnsubscribe(viewerKey, p);
         return;
       }
       case WS_PTY_MESSAGE_TYPES.INPUT: {
-        this.handleInput(fromPeerId, payload as unknown as WSInputPayload);
+        this.handleInput(payload as unknown as WSInputPayload);
         return;
       }
       case WS_PTY_MESSAGE_TYPES.RESIZE: {
-        this.handleResize(fromPeerId, payload as unknown as WSResizePayload);
+        this.handleResize(from, payload as unknown as WSResizePayload);
         return;
       }
       case WS_PTY_MESSAGE_TYPES.KILL: {
         const p = payload as unknown as { sessionId: string; signal?: string };
-        this.handleKill(fromPeerId, p);
+        this.handleKill(p);
         return;
       }
       case WS_PTY_MESSAGE_TYPES.FOCUS_CHANGED: {
         const p = payload as unknown as { sessionId: string; focused: boolean };
-        this.handleFocusFromViewer(fromPeerId, p);
+        this.handleFocusFromViewer(viewerKey, p);
         return;
       }
       case WS_PTY_MESSAGE_TYPES.CREATE_SESSION: {
         // v0.1: remote spawn is out of scope (plan D7). Fail fast so the
         // viewer doesn't hang waiting for a session.
-        this.replyCreateFailed(fromPeerId, 'remote spawn not supported in v0.1');
+        this.replyCreateFailed(from, transport, 'remote spawn not supported in v0.1');
         return;
       }
       // All other types are viewer-side (OUTPUT, RESIZED, SESSION_ENDED,
@@ -358,9 +362,39 @@ export class RemoteSessionService extends EventEmitter {
     }
   }
 
+  private fromKey(from: MeshNamespacedMessage['from']): string {
+    if (typeof from === 'string') return from;
+    return from.ref;
+  }
+
+  private resolveTransportFromMessage(
+    from: MeshNamespacedMessage['from']
+  ): MeshPTYTransport | null {
+    if (typeof from !== 'string') {
+      return this.bridge.getTransportForPeer(from);
+    }
+    // String form is WhoIs Tailscale id (or rarely a peer ref).
+    return (
+      this.bridge.getTransport(from) ??
+      // Tailscale-indexed path
+      this.findTransportByTailscale(from)
+    );
+  }
+
+  private findTransportByTailscale(tailscaleId: string): MeshPTYTransport | null {
+    for (const transport of this.bridge.getTransports().values()) {
+      if (transport.peer.tailscaleId === tailscaleId) return transport;
+    }
+    return null;
+  }
+
   // ─── SUBSCRIBE ────────────────────────────────────────────────────────────
 
-  private handleSubscribe(fromPeerId: string, payload: WSSubscribePayload): void {
+  private handleSubscribe(
+    viewerKey: string,
+    transport: MeshPTYTransport | null,
+    payload: WSSubscribePayload
+  ): void {
     const { sessionId } = payload;
     const session = this.sessionManager.getSession(sessionId);
 
@@ -373,33 +407,32 @@ export class RemoteSessionService extends EventEmitter {
       return;
     }
 
-    const transport = this.bridge.getTransport(fromPeerId);
     if (!transport) {
-      console.warn(`${LOG_PREFIX} subscribe rejected — no transport for peer ${fromPeerId}`);
+      console.warn(`${LOG_PREFIX} subscribe rejected — no transport for peer ${viewerKey}`);
       return;
     }
 
     // Create (or reuse) a relay session for this (session, peer) pair.
-    this.relayManager.createRelay(session, transport, fromPeerId);
+    this.relayManager.createRelay(session, transport, viewerKey);
 
     // Replay the current output buffer to the new subscriber so they see
     // accumulated terminal state, not just new output.
     const buffer = this.sessionManager.getOutputBuffer(sessionId);
     if (buffer && buffer.length > 0) {
-      transport.sendOutput(sessionId, buffer, fromPeerId);
+      transport.sendOutput(sessionId, buffer, viewerKey);
     }
 
-    console.log(`${LOG_PREFIX} peer ${fromPeerId} subscribed to ${sessionId}`);
+    console.log(`${LOG_PREFIX} peer ${viewerKey} subscribed to ${sessionId}`);
   }
 
-  private handleUnsubscribe(fromPeerId: string, payload: { sessionId: string }): void {
-    this.relayManager.disposeRelay(payload.sessionId, fromPeerId);
-    console.log(`${LOG_PREFIX} peer ${fromPeerId} unsubscribed from ${payload.sessionId}`);
+  private handleUnsubscribe(viewerKey: string, payload: { sessionId: string }): void {
+    this.relayManager.disposeRelay(payload.sessionId, viewerKey);
+    console.log(`${LOG_PREFIX} peer ${viewerKey} unsubscribed from ${payload.sessionId}`);
   }
 
   // ─── INPUT ────────────────────────────────────────────────────────────────
 
-  private handleInput(_fromPeerId: string, payload: WSInputPayload): void {
+  private handleInput(payload: WSInputPayload): void {
     // Input is always accepted — the canonical session decides whether to
     // act on it. (Focus authority is a UI concern, not an input gate.)
     const data = Buffer.from(payload.data, 'base64');
@@ -408,16 +441,24 @@ export class RemoteSessionService extends EventEmitter {
 
   // ─── RESIZE ───────────────────────────────────────────────────────────────
 
-  private handleResize(fromPeerId: string, payload: WSResizePayload): void {
+  private handleResize(
+    from: MeshNamespacedMessage['from'],
+    payload: WSResizePayload
+  ): void {
     // Authority check (optional): if a terminal store sync is wired up,
-    // only let the device with an active terminal resize. Otherwise fall
-    // back to cooperative (anyone can resize).
+    // only let the device with an active terminal resize. Prefer durable
+    // ULID when known; otherwise peer ref (best-effort).
+    const authorityId =
+      typeof from === 'string'
+        ? from
+        : (from.deviceId ?? from.ref);
+
     if (
       this.terminalStoreSync &&
-      !this.terminalStoreSync.canDeviceResizeSession(payload.sessionId, fromPeerId)
+      !this.terminalStoreSync.canDeviceResizeSession(payload.sessionId, authorityId)
     ) {
       console.warn(
-        `${LOG_PREFIX} resize rejected — ${fromPeerId} has no active terminal for ${payload.sessionId}`
+        `${LOG_PREFIX} resize rejected — ${authorityId} has no active terminal for ${payload.sessionId}`
       );
       return;
     }
@@ -426,17 +467,14 @@ export class RemoteSessionService extends EventEmitter {
 
   // ─── KILL ─────────────────────────────────────────────────────────────────
 
-  private handleKill(
-    _fromPeerId: string,
-    payload: { sessionId: string; signal?: string }
-  ): void {
+  private handleKill(payload: { sessionId: string; signal?: string }): void {
     this.sessionManager.kill(payload.sessionId, payload.signal);
   }
 
   // ─── FOCUS ────────────────────────────────────────────────────────────────
 
   private handleFocusFromViewer(
-    fromPeerId: string,
+    viewerKey: string,
     payload: { sessionId: string; focused: boolean }
   ): void {
     // Surface to the consumer via the notifier. No BrowserWindow coupling.
@@ -444,30 +482,39 @@ export class RemoteSessionService extends EventEmitter {
       payload.sessionId,
       payload.focused,
       'remote',
-      fromPeerId
+      viewerKey
     );
   }
 
   // ─── CREATE (out of scope) ────────────────────────────────────────────────
 
-  private replyCreateFailed(fromPeerId: string, error: string): void {
-    const transport = this.bridge.getTransport(fromPeerId);
-    if (!transport) return;
-    // Send through the raw transport send path via an exposed owner-side
-    // method. `sendSessionEnded` doesn't fit — we need CREATE_FAILED. The
-    // simplest approach: ask the transport for its peerId and use its
-    // existing wire helper via a tiny synthetic message. MeshPTYTransport
-    // doesn't expose a public generic send method; emit it by calling
-    // `node.send` directly here. We have `node` on this, so do that.
+  private replyCreateFailed(
+    from: MeshNamespacedMessage['from'],
+    transport: MeshPTYTransport | null,
+    error: string
+  ): void {
     const buffer = Buffer.from(
       JSON.stringify({
         type: WS_PTY_MESSAGE_TYPES.CREATE_FAILED,
         error,
       })
     );
-    void this.node.send(fromPeerId, PTY_NAMESPACE, buffer).catch((err) => {
+
+    if (transport) {
+      // Prefer the bound Peer handle for generation-checked send.
+      void transport.peer.send(PTY_NAMESPACE, buffer).catch((err) => {
+        console.warn(
+          `${LOG_PREFIX} failed to send CREATE_FAILED:`,
+          err instanceof Error ? err.message : err
+        );
+      });
+      return;
+    }
+
+    // Last resort: PeerLike send via node (from may be Peer or query string).
+    void this.node.send(from as Peer | string, PTY_NAMESPACE, buffer).catch((err) => {
       console.warn(
-        `${LOG_PREFIX} failed to send CREATE_FAILED to ${fromPeerId}:`,
+        `${LOG_PREFIX} failed to send CREATE_FAILED:`,
         err instanceof Error ? err.message : err
       );
     });
@@ -482,28 +529,29 @@ export class RemoteSessionService extends EventEmitter {
    *
    * Called in two places:
    *   1. `syncStore.onRemoteChange` fires when a peer updates/removes
-   *      their slice.
+   *      their slice (keyed by durable ULID).
    *   2. `bridge.transportCreated` fires when a peer WS-connects — we
-   *      catch up on whatever they've already published.
+   *      catch up on whatever they've already published (if identity known).
    *
-   * @param peerId    sending device id
+   * @param deviceId  durable ULID of the remote device
    * @param sessions  new session list, or `null` for a peer_removed event
    */
   private handleRemoteSessionsChanged(
-    peerId: string,
+    deviceId: string,
     sessions: RemoteSessionAnnounce[] | null
   ): void {
     if (sessions === null) {
-      this.cleanupPeerProxies(peerId);
-      this.notifier?.remoteSessionsChanged(peerId, 0);
+      this.cleanupPeerProxiesByDeviceId(deviceId);
+      this.notifier?.remoteSessionsChanged(deviceId, 0);
       return;
     }
 
-    const transport = this.bridge.getTransport(peerId);
+    const transport = this.bridge.getTransportByDeviceId(deviceId);
     if (!transport) {
       // No transport yet — bridge's transportCreated handler will call us
-      // again once one is established.
-      this.notifier?.remoteSessionsChanged(peerId, sessions.length);
+      // again once one is established (and identity is known). Or identity
+      // is still pending; we'll reconcile when the index is populated.
+      this.notifier?.remoteSessionsChanged(deviceId, sessions.length);
       return;
     }
 
@@ -530,7 +578,7 @@ export class RemoteSessionService extends EventEmitter {
     for (const session of sessions) {
       if (!existingRemoteIds.has(session.sessionId)) {
         console.log(
-          `${LOG_PREFIX} announcing remote session ${session.sessionId} from peer ${peerId}`
+          `${LOG_PREFIX} announcing remote session ${session.sessionId} from device ${deviceId}`
         );
         (transport as IPTYTransport).emit('sessionAnnounced', session);
       }
@@ -541,7 +589,7 @@ export class RemoteSessionService extends EventEmitter {
       const remoteId = getOriginalId(proxy.id);
       if (!nextRemoteIds.has(remoteId)) {
         console.log(
-          `${LOG_PREFIX} remote session ${remoteId} gone from peer ${peerId}, killing proxy ${proxy.id}`
+          `${LOG_PREFIX} remote session ${remoteId} gone from device ${deviceId}, killing proxy ${proxy.id}`
         );
         // Use `kill` rather than `dispose` — the proxy may have cleanup
         // logic registered with the session manager via its 'exit' event.
@@ -549,17 +597,19 @@ export class RemoteSessionService extends EventEmitter {
       }
     }
 
-    this.notifier?.remoteSessionsChanged(peerId, sessions.length);
+    this.notifier?.remoteSessionsChanged(deviceId, sessions.length);
   }
 
-  private cleanupPeerProxies(peerId: string): void {
-    const transport = this.bridge.getTransport(peerId);
+  private cleanupPeerProxiesByDeviceId(deviceId: string): void {
+    const transport = this.bridge.getTransportByDeviceId(deviceId);
     if (!transport) return;
     const proxies = this.sessionManager
       .getSessionsBySource('ws')
       .filter((s) => this.sessionManager.getTransportIdForSession(s.id) === transport.transportId);
     for (const proxy of proxies) {
-      console.log(`${LOG_PREFIX} disposing proxy ${proxy.id} from departed peer ${peerId}`);
+      console.log(
+        `${LOG_PREFIX} disposing proxy ${proxy.id} from departed device ${deviceId}`
+      );
       proxy.dispose();
     }
   }
