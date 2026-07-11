@@ -1,5 +1,5 @@
 /**
- * Bundled fonts — Nerd Mono + Symbols for Ghostty-like glyph coverage.
+ * Bundled fonts — full Nerd Mono weight set + Symbols for Ghostty-like coverage.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -14,41 +14,55 @@ import {
 
 const FONTS_DIR = resolve(__dirname, '../../assets/fonts');
 
+const REQUIRED = [
+  'JetBrainsMonoNLNerdFontMono-Regular.ttf',
+  'JetBrainsMonoNLNerdFontMono-Bold.ttf',
+  'JetBrainsMonoNLNerdFontMono-Italic.ttf',
+  'JetBrainsMonoNLNerdFontMono-BoldItalic.ttf',
+  'SymbolsNerdFont-Regular.ttf',
+];
+
 describe('bundled mono + nerd fonts', () => {
-  it('ships JetBrains Mono NL Nerd Font Mono and Symbols Nerd Font', () => {
-    const mono = resolve(FONTS_DIR, 'JetBrainsMonoNLNerdFontMono-Regular.ttf');
-    const symbols = resolve(FONTS_DIR, 'SymbolsNerdFont-Regular.ttf');
-    expect(existsSync(mono)).toBe(true);
-    expect(existsSync(symbols)).toBe(true);
-    expect(readFileSync(mono).byteLength).toBeGreaterThan(100_000);
-    expect(readFileSync(symbols).byteLength).toBeGreaterThan(100_000);
+  it('ships full Nerd Mono weight set + Symbols Nerd Font', () => {
+    for (const file of REQUIRED) {
+      const path = resolve(FONTS_DIR, file);
+      expect(existsSync(path), path).toBe(true);
+      expect(readFileSync(path).byteLength).toBeGreaterThan(100_000);
+    }
   });
 
-  it('hasBundledNerdCoverage is true with both assets', async () => {
+  it('hasBundledNerdCoverage is true with all faces', async () => {
     expect(await hasBundledNerdCoverage()).toBe(true);
   });
 
-  it('loadBundledMonoFont resolves Nerd Mono primary', async () => {
+  it('loadBundledMonoFont resolves Nerd Mono Regular', async () => {
     const face = await loadBundledMonoFont();
     expect(face).not.toBeNull();
     expect(face!.name.toLowerCase()).toMatch(/nerd|jetbrains/);
+    expect(face!.weight).toBe(400);
+    expect(face!.style).toBe('normal');
     expect(face!.data.byteLength).toBeGreaterThan(100_000);
   });
 
-  it('buildResttyFontChain includes buffer faces + local fallbacks', async () => {
+  it('buildResttyFontChain includes all weights + symbols + local fallbacks', async () => {
     const chain = await buildResttyFontChain();
-    expect(chain.length).toBeGreaterThan(2);
+    const buffers = chain.filter((f) => 'data' in f) as Array<{
+      name: string;
+      weight?: number;
+      style?: string;
+    }>;
 
-    const buffers = chain.filter((f) => 'data' in f);
-    expect(buffers.length).toBeGreaterThanOrEqual(2);
-    expect(buffers.some((f) => 'name' in f && /nerd/i.test(String(f.name)))).toBe(
+    expect(buffers.length).toBeGreaterThanOrEqual(5);
+    expect(buffers.some((f) => f.weight === 700 && f.style === 'normal')).toBe(
       true
     );
+    expect(buffers.some((f) => f.style === 'italic')).toBe(true);
+    expect(buffers.some((f) => /symbols/i.test(f.name))).toBe(true);
 
-    const locals = chain.filter((f) => 'family' in f);
-    expect(locals.some((f) => 'family' in f && f.family === 'Apple Color Emoji')).toBe(
-      true
-    );
+    const locals = chain.filter((f) => 'family' in f) as Array<{
+      family: string;
+    }>;
+    expect(locals.some((f) => f.family === 'Apple Color Emoji')).toBe(true);
   });
 
   it('bundledFontResttyInput maps to restty buffer descriptor', async () => {

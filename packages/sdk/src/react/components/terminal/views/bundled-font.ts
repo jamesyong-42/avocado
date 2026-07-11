@@ -1,13 +1,13 @@
 /**
  * Bundled terminal fonts for restty — Ghostty-like coverage without CDN.
  *
- * Ghostty embeds JetBrains Mono + built-in Nerd Font symbols. Restty's default
- * chain does the same via local faces + jsdelivr fallbacks. We ship:
- *   1. JetBrainsMono NL Nerd Font Mono (primary text + icons)
- *   2. Symbols Nerd Font (full PUA / powerline / codicons coverage)
+ * Ghostty embeds JetBrains Mono + built-in Nerd Fonts. Restty’s default chain
+ * does the same via local faces + jsdelivr. We ship the full mono weight set
+ * plus Symbols Nerd Font so overriding `terminal.fonts` does not produce tofu.
  *
- * Overriding `terminal.fonts` **replaces** restty's DEFAULT_FONT_INPUTS, so a
- * plain JetBrains Mono alone causes missing-glyph tofu (white box with ×).
+ * Assets (under packages/sdk/assets/fonts/):
+ *   JetBrainsMonoNLNerdFontMono-{Regular,Bold,Italic,BoldItalic}.ttf
+ *   SymbolsNerdFont-Regular.ttf
  */
 
 export type BundledFontFace = {
@@ -47,12 +47,31 @@ type FontSpec = {
   style: 'normal' | 'italic';
 };
 
+/** Matches restty DEFAULT_FONT_INPUTS naming for style selection. */
 const BUNDLED_SPECS: FontSpec[] = [
   {
     file: 'JetBrainsMonoNLNerdFontMono-Regular.ttf',
-    name: 'JetBrains Mono NL Nerd Font Mono',
+    name: 'JetBrains Mono Nerd Font Regular',
     weight: 400,
     style: 'normal',
+  },
+  {
+    file: 'JetBrainsMonoNLNerdFontMono-Bold.ttf',
+    name: 'JetBrains Mono Nerd Font Bold',
+    weight: 700,
+    style: 'normal',
+  },
+  {
+    file: 'JetBrainsMonoNLNerdFontMono-Italic.ttf',
+    name: 'JetBrains Mono Nerd Font Italic',
+    weight: 400,
+    style: 'italic',
+  },
+  {
+    file: 'JetBrainsMonoNLNerdFontMono-BoldItalic.ttf',
+    name: 'JetBrains Mono Nerd Font Bold Italic',
+    weight: 700,
+    style: 'italic',
   },
   {
     file: 'SymbolsNerdFont-Regular.ttf',
@@ -62,26 +81,60 @@ const BUNDLED_SPECS: FontSpec[] = [
   },
 ];
 
+/** Vite-friendly static URL imports (hashed assets in electron-vite builds). */
+async function viteFontUrl(file: string): Promise<string | undefined> {
+  try {
+    switch (file) {
+      case 'JetBrainsMonoNLNerdFontMono-Regular.ttf': {
+        // @ts-expect-error vite ?url
+        const mod = await import('../../../../../assets/fonts/JetBrainsMonoNLNerdFontMono-Regular.ttf?url');
+        return typeof mod === 'string' ? mod : (mod as { default?: string }).default;
+      }
+      case 'JetBrainsMonoNLNerdFontMono-Bold.ttf': {
+        // @ts-expect-error vite ?url
+        const mod = await import('../../../../../assets/fonts/JetBrainsMonoNLNerdFontMono-Bold.ttf?url');
+        return typeof mod === 'string' ? mod : (mod as { default?: string }).default;
+      }
+      case 'JetBrainsMonoNLNerdFontMono-Italic.ttf': {
+        // @ts-expect-error vite ?url
+        const mod = await import('../../../../../assets/fonts/JetBrainsMonoNLNerdFontMono-Italic.ttf?url');
+        return typeof mod === 'string' ? mod : (mod as { default?: string }).default;
+      }
+      case 'JetBrainsMonoNLNerdFontMono-BoldItalic.ttf': {
+        // @ts-expect-error vite ?url
+        const mod = await import('../../../../../assets/fonts/JetBrainsMonoNLNerdFontMono-BoldItalic.ttf?url');
+        return typeof mod === 'string' ? mod : (mod as { default?: string }).default;
+      }
+      case 'SymbolsNerdFont-Regular.ttf': {
+        // @ts-expect-error vite ?url
+        const mod = await import('../../../../../assets/fonts/SymbolsNerdFont-Regular.ttf?url');
+        return typeof mod === 'string' ? mod : (mod as { default?: string }).default;
+      }
+      case 'JetBrainsMono-Regular.ttf': {
+        // @ts-expect-error vite ?url
+        const mod = await import('../../../../../assets/fonts/JetBrainsMono-Regular.ttf?url');
+        return typeof mod === 'string' ? mod : (mod as { default?: string }).default;
+      }
+      default:
+        return undefined;
+    }
+  } catch {
+    return undefined;
+  }
+}
+
 async function loadFontFile(file: string): Promise<ArrayBuffer | null> {
   try {
     if (typeof fetch === 'function') {
       try {
-        let url: string | undefined;
-        try {
-          // Vite emits a content-hashed asset when ?url is used.
-          const mod = await import(
-            /* @vite-ignore */ `${ASSETS}/${file}?url`
-          );
-          url = typeof mod === 'string' ? mod : (mod as { default?: string }).default;
-        } catch {
+        let url = await viteFontUrl(file);
+        if (!url) {
           url = new URL(`${ASSETS}/${file}`, import.meta.url).href;
         }
-        if (url) {
-          const res = await fetch(url);
-          if (res.ok) {
-            const data = await res.arrayBuffer();
-            if (data.byteLength > 0) return data;
-          }
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.arrayBuffer();
+          if (data.byteLength > 0) return data;
         }
       } catch {
         /* fall through to fs */
@@ -125,13 +178,11 @@ export async function loadBundledFontFace(spec: FontSpec): Promise<BundledFontFa
 }
 
 /**
- * Load primary mono face (Nerd Font Mono when available).
- * @deprecated Prefer {@link buildResttyFontChain}; kept for simple consumers.
+ * Load primary mono face (Nerd Font Mono Regular when available).
  */
 export async function loadBundledMonoFont(): Promise<BundledFontFace | null> {
   const nerd = await loadBundledFontFace(BUNDLED_SPECS[0]!);
   if (nerd) return nerd;
-  // Legacy plain JetBrains Mono if nerd asset missing
   return loadBundledFontFace({
     file: 'JetBrainsMono-Regular.ttf',
     name: 'JetBrains Mono',
@@ -142,7 +193,12 @@ export async function loadBundledMonoFont(): Promise<BundledFontFace | null> {
 
 export function bundledFontResttyInput(
   face: BundledFontFace
-): { data: ArrayBuffer; name: string; weight: number; style: 'normal' | 'italic' } {
+): {
+  data: ArrayBuffer;
+  name: string;
+  weight: number;
+  style: 'normal' | 'italic';
+} {
   return {
     data: face.data,
     name: face.name,
@@ -152,12 +208,9 @@ export function bundledFontResttyInput(
 }
 
 /**
- * Restty font chain approximating Ghostty defaults:
- * primary Nerd Mono → Symbols Nerd Font → local emoji/system symbols.
- *
- * Always returns at least local family fallbacks so restty is not left with
- * an empty list (which would still use DEFAULT_FONT_INPUTS only when fonts
- * is **omitted**, not empty).
+ * Restty font chain approximating Ghostty + restty DEFAULT_FONT_INPUTS:
+ *   Regular/Bold/Italic/BoldItalic Nerd Mono → Symbols Nerd Font →
+ *   local nerd/emoji/system mono faces.
  */
 export async function buildResttyFontChain(): Promise<ResttyFontInputLike[]> {
   const chain: ResttyFontInputLike[] = [];
@@ -169,32 +222,57 @@ export async function buildResttyFontChain(): Promise<ResttyFontInputLike[]> {
     }
   }
 
-  // Prefer locally installed Nerd / symbol faces when the user has them
-  // (Electron may not grant Local Font Access; restty ignores failures).
-  for (const family of [
-    'JetBrains Mono Nerd Font',
-    'JetBrainsMono Nerd Font',
-    'Symbols Nerd Font',
-    'Apple Symbols',
-    'Apple Color Emoji',
-    'Menlo',
-    'Monaco',
-    'SF Mono',
-    'Cascadia Mono',
-    'Consolas',
+  // Local faces (Electron may not grant Local Font Access; failures are fine).
+  for (const entry of [
+    { family: 'JetBrains Mono Nerd Font', name: 'JetBrains Mono Nerd Font', weight: 400 },
+    { family: 'JetBrains Mono Nerd Font', name: 'JetBrains Mono Nerd Font Bold', weight: 700 },
+    {
+      family: 'JetBrains Mono Nerd Font',
+      name: 'JetBrains Mono Nerd Font Italic',
+      weight: 400,
+      style: 'italic' as const,
+    },
+    {
+      family: 'JetBrains Mono Nerd Font',
+      name: 'JetBrains Mono Nerd Font Bold Italic',
+      weight: 700,
+      style: 'italic' as const,
+    },
+    { family: 'Symbols Nerd Font', name: 'Symbols Nerd Font' },
+    { family: 'Apple Symbols', name: 'Apple Symbols' },
+    { family: 'Apple Color Emoji', name: 'Apple Color Emoji' },
+    { family: 'Menlo', name: 'Menlo' },
+    { family: 'Monaco', name: 'Monaco' },
+    { family: 'SF Mono', name: 'SF Mono' },
+    { family: 'Cascadia Mono', name: 'Cascadia Mono' },
+    { family: 'Consolas', name: 'Consolas' },
   ]) {
-    chain.push({ family, local: 'prefer', name: family });
+    chain.push({
+      family: entry.family,
+      local: 'prefer',
+      name: entry.name,
+      weight: entry.weight,
+      style: 'style' in entry ? entry.style : 'normal',
+    });
   }
 
-  // If nothing bundled loaded, leave chain as local-only; restty will still
-  // render ASCII from system mono. Caller may choose to omit fonts entirely
-  // to restore restty CDN defaults.
   return chain;
 }
 
-/** True when both critical glyph-coverage faces are present. */
+/** True when all critical glyph-coverage faces are present. */
 export async function hasBundledNerdCoverage(): Promise<boolean> {
-  const mono = await loadFontFile(BUNDLED_SPECS[0]!.file);
-  const symbols = await loadFontFile(BUNDLED_SPECS[1]!.file);
-  return Boolean(mono && symbols && mono.byteLength > 50_000 && symbols.byteLength > 50_000);
+  const needed = [
+    'JetBrainsMonoNLNerdFontMono-Regular.ttf',
+    'JetBrainsMonoNLNerdFontMono-Bold.ttf',
+    'JetBrainsMonoNLNerdFontMono-Italic.ttf',
+    'JetBrainsMonoNLNerdFontMono-BoldItalic.ttf',
+    'SymbolsNerdFont-Regular.ttf',
+  ];
+  for (const file of needed) {
+    const data = await loadFontFile(file);
+    if (!data || data.byteLength < 50_000) return false;
+  }
+  return true;
 }
+
+export { BUNDLED_SPECS };

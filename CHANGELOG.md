@@ -30,8 +30,8 @@
 * **react:** first-class `AvocadoPtyTransport` for restty (no local echo; keys → avocado, display via `sendInput(..., "pty")`)
 * **react:** terminal view lifecycle events (`connected` / `disconnected` / `exit` / `error`)
 * **react:** single-direction resize ownership — host `resize()` does not re-emit; engine fit/autoResize drives PTY size
-* **react:** ship bundled JetBrains Mono **Nerd Font Mono** + Symbols Nerd Font for restty glyph coverage (no CDN; fixes tofu / □× icons)
-* **react:** restty Ghostty-parity defaults — `renderer: auto`, `Ghostty Default Style Dark` theme, ligatures
+* **react:** ship full JetBrains Mono **Nerd Font Mono** weight set (regular/bold/italic/bold-italic) + Symbols Nerd Font for restty glyph coverage (no CDN; fixes tofu / □× icons)
+* **react:** Ghostty-parity restty defaults — WebGPU-first, `Ghostty Default Style Dark`, font-size 13, height sizing, ligatures, linear-corrected blending, 2px window padding, theme conversion from avocado palette bags
 * **sdk:** restty path smoke e2e (`pnpm test:e2e`) — type, backspace, resize, lifecycle, engine factory
 
 ## [0.2.1](https://github.com/jamesyong-42/avocado/compare/avocado-v0.2.0...avocado-v0.2.1) (2026-04-13)

@@ -2,6 +2,10 @@
  * ResttyTerminalView — TerminalView over the primary Restty API
  * (libghostty-vt WASM + WebGPU/WebGL2).
  *
+ * Configured for Ghostty parity via {@link buildGhosttyParity}:
+ * full Nerd Font weight set, Symbols Nerd Font, Ghostty default theme,
+ * WebGPU-first renderer, ligatures, linear-corrected blending, window padding.
+ *
  * I/O model:
  * - Keys: AvocadoPtyTransport (connected) → avocado PTY (no local echo)
  * - Display: avocado PTY output → Restty.sendInput(text, "pty")
@@ -19,7 +23,10 @@ import {
   AvocadoPtyTransport,
   createAvocadoPtyTransport,
 } from './avocado-pty-transport.js';
-import { buildResttyFontChain } from './bundled-font.js';
+import {
+  buildGhosttyParity,
+  GHOSTTY_DEFAULT_FONT_SIZE,
+} from './ghostty-parity.js';
 
 /** Minimal Restty instance surface we depend on. */
 export interface ResttyInstance {
@@ -27,8 +34,13 @@ export interface ResttyInstance {
   resize(cols: number, rows: number): void;
   focus(): void;
   blur(): void;
-  updateSize(): void;
+  updateSize(force?: boolean): void;
   destroy(): void;
+  applyTheme?(theme: unknown, sourceLabel?: string): void;
+  setFontSize?(size: number): void;
+  setLigatures?(enabled: boolean): void;
+  setRenderer?(value: 'auto' | 'webgpu' | 'webgl2'): void;
+  getBackend?(): string;
 }
 
 export type ResttyCtor = new (config: Record<string, unknown>) => ResttyInstance;
@@ -62,10 +74,10 @@ const defaultLoadRestty: LoadRestty = async () => {
   return mod.Restty;
 };
 
-/** Ghostty's own default palette (closest visual match in restty's catalog). */
-const DEFAULT_GHOSTTY_THEME = 'Ghostty Default Style Dark';
-
-function prepareHost(container: HTMLElement): void {
+function prepareHost(
+  container: HTMLElement,
+  opts: { paddingPx: number; background: string }
+): void {
   container.replaceChildren();
   container.style.position = 'absolute';
   container.style.inset = '0';
@@ -74,6 +86,10 @@ function prepareHost(container: HTMLElement): void {
   container.style.overflow = 'hidden';
   container.style.minHeight = '0';
   container.style.minWidth = '0';
+  // Ghostty window-padding-x/y ≈ 2px
+  container.style.padding = `${opts.paddingPx}px`;
+  container.style.boxSizing = 'border-box';
+  container.style.backgroundColor = opts.background;
 }
 
 function afterLayout(): Promise<void> {
@@ -121,16 +137,19 @@ export class ResttyTerminalView implements TerminalView {
       container,
       cols,
       rows,
-      fontSize = 14,
+      fontSize = GHOSTTY_DEFAULT_FONT_SIZE,
+      theme: avocadoTheme,
+      ghosttyThemeName,
+      resttyRenderer,
+      resttyLigatures,
+      resttyFontHinting,
+      resttyAlphaBlending,
+      resttyNerdIconScale,
     } = options;
-
-    prepareHost(container);
-    await afterLayout();
 
     let ResttyCtor: ResttyCtor;
     let resttyMod: ResttyModule | null = null;
     try {
-      // Prefer loading the full module so we can pull Ghostty themes.
       if (load === defaultLoadRestty) {
         resttyMod = await defaultLoadResttyModule();
         if (!resttyMod.Restty) {
@@ -148,6 +167,26 @@ export class ResttyTerminalView implements TerminalView {
         { cause: err instanceof Error ? err : undefined }
       );
     }
+
+    const parity = await buildGhosttyParity(
+      {
+        fontSize,
+        theme: avocadoTheme,
+        ghosttyThemeName,
+        renderer: resttyRenderer,
+        ligatures: resttyLigatures,
+        fontHinting: resttyFontHinting,
+        alphaBlending: resttyAlphaBlending,
+        nerdIconScale: resttyNerdIconScale,
+      },
+      resttyMod
+    );
+
+    prepareHost(container, {
+      paddingPx: parity.hostPaddingPx,
+      background: parity.hostBackground,
+    });
+    await afterLayout();
 
     const viewRef: { current: ResttyTerminalView | null } = { current: null };
 
@@ -186,13 +225,6 @@ export class ResttyTerminalView implements TerminalView {
       callbacks: {},
     });
 
-    // Full Ghostty-like chain (Nerd Mono + Symbols). Replacing restty's
-    // DEFAULT_FONT_INPUTS with plain mono alone produces tofu (□ with ×).
-    const fonts = await buildResttyFontChain();
-
-    const theme =
-      resttyMod?.getBuiltinTheme?.(DEFAULT_GHOSTTY_THEME) ?? undefined;
-
     const restty = new ResttyCtor({
       root: container,
       surface: {
@@ -203,28 +235,25 @@ export class ResttyTerminalView implements TerminalView {
         searchUi: false,
         defaultContextMenu: false,
       },
-      terminal: {
-        // Prefer WebGPU (closest to Ghostty Metal); fall back to WebGL2.
-        renderer: 'auto',
-        fontSize,
-        // Ghostty enables ligatures by default for programming fonts.
-        ligatures: true,
-        autoResize: true,
-        showResizeOverlay: false,
-        // Avocado PTY owns device replies; avoid double responses.
-        forwardTerminalReplies: false,
-        fonts,
-        ...(theme ? { theme } : {}),
-      },
+      terminal: parity.terminal,
       services: {
         ptyTransport: transport,
       },
     });
 
+    // Re-assert theme after mount (some restty builds apply theme async).
+    if (parity.theme && typeof restty.applyTheme === 'function') {
+      try {
+        restty.applyTheme(parity.theme, parity.themeSourceLabel);
+      } catch {
+        /* ignore */
+      }
+    }
+
     // Host-driven initial size (suppress engine resize bounce).
     transport.withHostResizeSuppressed(() => {
       restty.resize(cols, rows);
-      restty.updateSize();
+      restty.updateSize(true);
     });
 
     const view = new ResttyTerminalView(restty, transport, container, cols, rows);
@@ -243,6 +272,11 @@ export class ResttyTerminalView implements TerminalView {
   /** Expose transport for tests / advanced lifecycle (exit/error). */
   get ptyTransport(): AvocadoPtyTransport {
     return this.transport;
+  }
+
+  /** Underlying restty instance (advanced Ghostty-parity tweaks). */
+  get engine(): ResttyInstance {
+    return this.restty;
   }
 
   write(data: string | Uint8Array): void {

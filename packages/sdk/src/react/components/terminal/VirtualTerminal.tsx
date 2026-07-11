@@ -34,6 +34,13 @@ export interface VirtualTerminalProps {
    * - `restty`: Ghostty VT via restty (optional peer dep)
    */
   engine?: TerminalEngineId;
+  /** Restty only: Ghostty builtin theme name (default Ghostty Default Style Dark). */
+  ghosttyThemeName?: string;
+  resttyRenderer?: 'auto' | 'webgpu' | 'webgl2';
+  resttyLigatures?: boolean;
+  resttyFontHinting?: boolean;
+  resttyAlphaBlending?: 'native' | 'linear' | 'linear-corrected';
+  resttyNerdIconScale?: number;
 }
 
 const HOST_FILL: CSSProperties = {
@@ -63,6 +70,12 @@ export function VirtualTerminal({
   convertEol = false,
   suppressTerminalResponses = false,
   engine = 'xterm',
+  ghosttyThemeName,
+  resttyRenderer,
+  resttyLigatures,
+  resttyFontHinting,
+  resttyAlphaBlending,
+  resttyNerdIconScale,
 }: VirtualTerminalProps): JSX.Element {
   const { state, actions, error } = useTerminalCore({
     sessionId,
@@ -80,6 +93,12 @@ export function VirtualTerminal({
     convertEol,
     suppressTerminalResponses,
     engine,
+    ghosttyThemeName,
+    resttyRenderer,
+    resttyLigatures,
+    resttyFontHinting,
+    resttyAlphaBlending,
+    resttyNerdIconScale,
   });
 
   const { containerRef, fixedDimensions, isReady } = state;
@@ -89,12 +108,15 @@ export function VirtualTerminal({
     onFocus?.();
   }, [actions, onFocus]);
 
+  // Match Ghostty Default Style Dark host when restty is selected.
+  const hostBg = engine === 'restty' ? '#282c34' : '#1a1b26';
+
   const containerStyle: CSSProperties = autoResize
     ? {
         width: '100%',
         height: '100%',
         minHeight: '100px',
-        backgroundColor: '#1a1b26',
+        backgroundColor: hostBg,
         borderRadius: '4px',
         overflow: 'hidden',
         position: 'relative',
@@ -106,7 +128,7 @@ export function VirtualTerminal({
         minHeight: fixedDimensions?.height ?? 'auto',
         flexShrink: 0,
         flexGrow: 0,
-        backgroundColor: '#1a1b26',
+        backgroundColor: hostBg,
         borderRadius: '4px',
         overflow: 'hidden',
         position: 'relative',

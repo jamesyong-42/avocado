@@ -66,6 +66,12 @@ export {
   loadBundledMonoFont,
   buildResttyFontChain,
   hasBundledNerdCoverage,
+  buildGhosttyParity,
+  terminalViewThemeToGhostty,
+  GHOSTTY_DEFAULT_THEME_NAME,
+  GHOSTTY_DEFAULT_FONT_SIZE,
+  GHOSTTY_WINDOW_PADDING_PX,
+  GHOSTTY_DEFAULT_BG,
 } from './components/terminal/views/index.js';
 
 export type {

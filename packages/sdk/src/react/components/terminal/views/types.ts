@@ -42,6 +42,10 @@ export interface TerminalViewCreateOptions {
   container: HTMLElement;
   cols: number;
   rows: number;
+  /**
+   * Font size in CSS px. Ghostty default is 13; restty engine defaults to 13
+   * when omitted. xterm still defaults to 14 at the React layer.
+   */
   fontSize?: number;
   fontFamily?: string;
   /** Treat LF as CRLF (IPC/UDS passive viewers). */
@@ -49,7 +53,26 @@ export interface TerminalViewCreateOptions {
   cursorBlink?: boolean;
   /** Transparent cursor for passive/headless-ish UDS views. */
   cursorColor?: string;
+  /** Engine-neutral palette (mapped to GhosttyTheme for restty). */
   theme?: TerminalViewTheme;
+
+  // ── Restty / Ghostty-parity knobs (ignored by xterm) ─────────────────
+
+  /**
+   * restty builtin theme name (e.g. "Ghostty Default Style Dark",
+   * "Catppuccin Mocha", "TokyoNight Night"). Ignored when `theme` is set.
+   */
+  ghosttyThemeName?: string;
+  /** Prefer WebGPU (closest to Ghostty Metal). Default `auto`. */
+  resttyRenderer?: 'auto' | 'webgpu' | 'webgl2';
+  /** Programming ligatures (Ghostty default on for coding fonts). */
+  resttyLigatures?: boolean;
+  /** TrueType atlas hinting (default false — closer to macOS CoreText look). */
+  resttyFontHinting?: boolean;
+  /** GPU alpha blending mode. Default `linear-corrected`. */
+  resttyAlphaBlending?: 'native' | 'linear' | 'linear-corrected';
+  /** Scale factor for Nerd Font icons (default 1). */
+  resttyNerdIconScale?: number;
 }
 
 /**

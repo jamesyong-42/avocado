@@ -64,6 +64,14 @@ export interface UseTerminalCoreOptions {
    * Defaults to {@link defaultTerminalViewFactory}.
    */
   createView?: TerminalViewFactory;
+  /** Restty: Ghostty builtin theme name. */
+  ghosttyThemeName?: string;
+  /** Restty: WebGPU / WebGL2 preference. */
+  resttyRenderer?: 'auto' | 'webgpu' | 'webgl2';
+  resttyLigatures?: boolean;
+  resttyFontHinting?: boolean;
+  resttyAlphaBlending?: 'native' | 'linear' | 'linear-corrected';
+  resttyNerdIconScale?: number;
 }
 
 export interface UseTerminalCoreResult {
@@ -90,6 +98,12 @@ export function useTerminalCore({
   suppressTerminalResponses = false,
   engine = 'xterm',
   createView = defaultTerminalViewFactory,
+  ghosttyThemeName,
+  resttyRenderer,
+  resttyLigatures,
+  resttyFontHinting,
+  resttyAlphaBlending,
+  resttyNerdIconScale,
 }: UseTerminalCoreOptions): UseTerminalCoreResult {
   const backend = useAvocadoBackend();
 
@@ -204,11 +218,20 @@ export function useTerminalCore({
           container,
           cols,
           rows,
-          fontSize,
+          // Ghostty default is 13; restty path benefits from that when caller
+          // leaves the React default of 14 — only nudge when engine is restty
+          // and fontSize is the common default.
+          fontSize: engine === 'restty' && fontSize === 14 ? 13 : fontSize,
           fontFamily,
           convertEol,
           cursorBlink,
           cursorColor,
+          ghosttyThemeName,
+          resttyRenderer,
+          resttyLigatures,
+          resttyFontHinting,
+          resttyAlphaBlending,
+          resttyNerdIconScale,
         });
         if (cancelled) {
           view.dispose();

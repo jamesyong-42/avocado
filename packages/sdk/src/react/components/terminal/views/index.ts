@@ -45,3 +45,19 @@ export {
   hasBundledNerdCoverage,
 } from './bundled-font.js';
 export type { BundledFontFace, ResttyFontInputLike } from './bundled-font.js';
+
+export {
+  buildGhosttyParity,
+  terminalViewThemeToGhostty,
+  GHOSTTY_DEFAULT_THEME_NAME,
+  GHOSTTY_DEFAULT_FONT_SIZE,
+  GHOSTTY_WINDOW_PADDING_PX,
+  GHOSTTY_DEFAULT_BG,
+  GHOSTTY_DEFAULT_FG,
+} from './ghostty-parity.js';
+export type {
+  GhosttyParityOptions,
+  BuiltGhosttyParity,
+  ResttyRendererPref,
+  ResttyThemeLoader,
+} from './ghostty-parity.js';

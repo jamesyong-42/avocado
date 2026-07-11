@@ -90,24 +90,43 @@ Optional peer: `restty`. Missing restty → clear error when `engine: 'restty'`.
 Restty **replaces** its entire `DEFAULT_FONT_INPUTS` chain when `terminal.fonts`
 is set. That default chain is Ghostty-like:
 
-1. JetBrains Mono **Nerd Font** (local, then CDN)
+1. JetBrains Mono **Nerd Font** (regular/bold/italic/bold-italic)
 2. **Symbols Nerd Font** (powerline / codicons / PUA)
-3. Apple Symbols, Noto Symbols, emoji, CJK, …
+3. Apple Symbols, emoji, CJK, …
 
-Avocado ships:
+Avocado ships (via `buildResttyFontChain` / `buildGhosttyParity`):
 
 | File | Role |
 |------|------|
-| `JetBrainsMonoNLNerdFontMono-Regular.ttf` | Primary mono + most nerd glyphs |
+| `JetBrainsMonoNLNerdFontMono-Regular.ttf` | Primary mono + nerd glyphs |
+| `…-Bold / Italic / BoldItalic.ttf` | Style faces (SGR bold/italic) |
 | `SymbolsNerdFont-Regular.ttf` | Full Nerd symbols fallback |
 | `JetBrainsMono-Regular.ttf` | Legacy plain mono (optional) |
 
-`buildResttyFontChain()` loads those buffers + local emoji/system faces.
 **Plain JetBrains Mono alone** cannot render Nerd/PUA codepoints → white box
 with × (missing glyph / tofu).
 
-Other Ghostty-parity knobs we set: `renderer: 'auto'` (WebGPU→WebGL2),
-`theme: Ghostty Default Style Dark`, `ligatures: true`, minimal surface chrome.
+### 2.5 Ghostty parity knobs (`ghostty-parity.ts`)
+
+| Knob | Value | Why |
+|------|-------|-----|
+| `renderer` | `auto` | WebGPU first (≈ Ghostty Metal), WebGL2 fallback |
+| `theme` | `Ghostty Default Style Dark` | Stock Ghostty palette (#282c34) |
+| `fontSize` | 13 | Ghostty default font-size |
+| `fontSizeMode` | `height` | Closer to Ghostty face metrics |
+| `ligatures` | true | Coding-font default |
+| `fontHinting` | false | Closer to macOS CoreText look |
+| `alphaBlending` | `linear-corrected` | Modern GPU terminal blending |
+| `nerdIconScale` | 1 | 1:1 icon scale |
+| `maxScrollbackBytes` | 10MB | restty/Ghostty-scale |
+| host padding | 2px | Ghostty `window-padding-x/y` |
+| surface chrome | minimal | avocado owns card chrome |
+
+Optional overrides: `ghosttyThemeName`, `resttyRenderer`, `theme` bag on
+`VirtualTerminal` / `TerminalViewCreateOptions`.
+
+**Hard limits vs native Ghostty:** WASM VT (not full app), no Metal, no native
+window decorations, no shell-integration extras, emoji/CJK rely on local faces.
 
 ### 2.5 What we deliberately do **not** do in this spike
 

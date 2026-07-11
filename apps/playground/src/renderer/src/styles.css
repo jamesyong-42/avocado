@@ -31,12 +31,23 @@
   overflow-y: auto !important;
 }
 
-/* restty pane surface fills the host */
+/* restty pane surface fills the host (padding applied inline for Ghostty window-padding) */
 .virtual-terminal-host .restty-pane,
 .virtual-terminal-host .pane,
 .virtual-terminal-host canvas {
   width: 100%;
   height: 100%;
+  display: block;
+}
+
+/* Ghostty-like canvas: no subpixel antialiasing artifacts from CSS transforms */
+.virtual-terminal[data-engine='restty'] .virtual-terminal-host {
+  /* host padding + bg set by ResttyTerminalView for Ghostty window-padding */
+  isolation: isolate;
+}
+
+.virtual-terminal[data-engine='restty'] canvas {
+  image-rendering: auto;
 }
 
 html,
