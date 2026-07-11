@@ -19,7 +19,7 @@ import {
   AvocadoPtyTransport,
   createAvocadoPtyTransport,
 } from './avocado-pty-transport.js';
-import { bundledFontResttyInput, loadBundledMonoFont } from './bundled-font.js';
+import { buildResttyFontChain } from './bundled-font.js';
 
 /** Minimal Restty instance surface we depend on. */
 export interface ResttyInstance {
@@ -35,14 +35,15 @@ export type ResttyCtor = new (config: Record<string, unknown>) => ResttyInstance
 
 export type LoadRestty = () => Promise<ResttyCtor>;
 
-const defaultLoadRestty: LoadRestty = async () => {
+/** Optional restty module helpers (theme catalog, etc.). */
+export type ResttyModule = {
+  Restty?: ResttyCtor;
+  getBuiltinTheme?: (name: string) => unknown;
+};
+
+const defaultLoadResttyModule = async (): Promise<ResttyModule> => {
   try {
-    const mod = await import('restty');
-    const Restty = (mod as { Restty?: ResttyCtor }).Restty;
-    if (!Restty) {
-      throw new Error('restty package did not export Restty');
-    }
-    return Restty;
+    return (await import('restty')) as ResttyModule;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error(
@@ -52,6 +53,17 @@ const defaultLoadRestty: LoadRestty = async () => {
     );
   }
 };
+
+const defaultLoadRestty: LoadRestty = async () => {
+  const mod = await defaultLoadResttyModule();
+  if (!mod.Restty) {
+    throw new Error('restty package did not export Restty');
+  }
+  return mod.Restty;
+};
+
+/** Ghostty's own default palette (closest visual match in restty's catalog). */
+const DEFAULT_GHOSTTY_THEME = 'Ghostty Default Style Dark';
 
 function prepareHost(container: HTMLElement): void {
   container.replaceChildren();
@@ -116,8 +128,18 @@ export class ResttyTerminalView implements TerminalView {
     await afterLayout();
 
     let ResttyCtor: ResttyCtor;
+    let resttyMod: ResttyModule | null = null;
     try {
-      ResttyCtor = await load();
+      // Prefer loading the full module so we can pull Ghostty themes.
+      if (load === defaultLoadRestty) {
+        resttyMod = await defaultLoadResttyModule();
+        if (!resttyMod.Restty) {
+          throw new Error('restty package did not export Restty');
+        }
+        ResttyCtor = resttyMod.Restty;
+      } else {
+        ResttyCtor = await load();
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       throw new Error(
@@ -164,32 +186,35 @@ export class ResttyTerminalView implements TerminalView {
       callbacks: {},
     });
 
-    const fonts: unknown[] = [];
-    const bundled = await loadBundledMonoFont();
-    if (bundled) {
-      fonts.push(bundledFontResttyInput(bundled));
-    }
-    // Local system faces as soft fallbacks after the bundled face.
-    for (const family of ['Menlo', 'Monaco', 'SF Mono', 'Cascadia Mono', 'Consolas']) {
-      fonts.push({ family, local: 'prefer' as const });
-    }
+    // Full Ghostty-like chain (Nerd Mono + Symbols). Replacing restty's
+    // DEFAULT_FONT_INPUTS with plain mono alone produces tofu (□ with ×).
+    const fonts = await buildResttyFontChain();
+
+    const theme =
+      resttyMod?.getBuiltinTheme?.(DEFAULT_GHOSTTY_THEME) ?? undefined;
 
     const restty = new ResttyCtor({
       root: container,
       surface: {
-        paneStyles: true,
+        // Minimal chrome — avocado owns the card chrome, not restty panes.
+        paneStyles: false,
         createInitialPane: true,
         shortcuts: false,
         searchUi: false,
         defaultContextMenu: false,
       },
       terminal: {
-        renderer: 'webgl2',
+        // Prefer WebGPU (closest to Ghostty Metal); fall back to WebGL2.
+        renderer: 'auto',
         fontSize,
+        // Ghostty enables ligatures by default for programming fonts.
+        ligatures: true,
         autoResize: true,
         showResizeOverlay: false,
+        // Avocado PTY owns device replies; avoid double responses.
         forwardTerminalReplies: false,
         fonts,
+        ...(theme ? { theme } : {}),
       },
       services: {
         ptyTransport: transport,

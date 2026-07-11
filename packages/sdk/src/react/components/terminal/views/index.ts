@@ -38,5 +38,10 @@ export type {
   AvocadoPtyResizeMeta,
 } from './avocado-pty-transport.js';
 
-export { loadBundledMonoFont, bundledFontResttyInput } from './bundled-font.js';
-export type { BundledFontFace } from './bundled-font.js';
+export {
+  loadBundledMonoFont,
+  bundledFontResttyInput,
+  buildResttyFontChain,
+  hasBundledNerdCoverage,
+} from './bundled-font.js';
+export type { BundledFontFace, ResttyFontInputLike } from './bundled-font.js';

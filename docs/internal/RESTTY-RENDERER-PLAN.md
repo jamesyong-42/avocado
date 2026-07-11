@@ -85,11 +85,29 @@ createTerminalView(engine, options): Promise<TerminalView>
 
 Optional peer: `restty`. Missing restty → clear error when `engine: 'restty'`.
 
-### 2.4 Fonts
+### 2.4 Fonts (why tofu / □ with × happens)
 
-`packages/sdk/assets/fonts/JetBrainsMono-Regular.ttf` is shipped with the SDK.
-`loadBundledMonoFont()` prefers Vite `?url` / fetch, then Node fs. Restty config
-also lists system mono faces as soft fallbacks. CDN is optional at most.
+Restty **replaces** its entire `DEFAULT_FONT_INPUTS` chain when `terminal.fonts`
+is set. That default chain is Ghostty-like:
+
+1. JetBrains Mono **Nerd Font** (local, then CDN)
+2. **Symbols Nerd Font** (powerline / codicons / PUA)
+3. Apple Symbols, Noto Symbols, emoji, CJK, …
+
+Avocado ships:
+
+| File | Role |
+|------|------|
+| `JetBrainsMonoNLNerdFontMono-Regular.ttf` | Primary mono + most nerd glyphs |
+| `SymbolsNerdFont-Regular.ttf` | Full Nerd symbols fallback |
+| `JetBrainsMono-Regular.ttf` | Legacy plain mono (optional) |
+
+`buildResttyFontChain()` loads those buffers + local emoji/system faces.
+**Plain JetBrains Mono alone** cannot render Nerd/PUA codepoints → white box
+with × (missing glyph / tofu).
+
+Other Ghostty-parity knobs we set: `renderer: 'auto'` (WebGPU→WebGL2),
+`theme: Ghostty Default Style Dark`, `ligatures: true`, minimal surface chrome.
 
 ### 2.5 What we deliberately do **not** do in this spike
 

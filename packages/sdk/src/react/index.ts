@@ -64,6 +64,8 @@ export {
   AvocadoPtyTransport,
   createAvocadoPtyTransport,
   loadBundledMonoFont,
+  buildResttyFontChain,
+  hasBundledNerdCoverage,
 } from './components/terminal/views/index.js';
 
 export type {
