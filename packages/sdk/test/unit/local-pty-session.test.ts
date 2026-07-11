@@ -102,13 +102,27 @@ describe('buildInteractivePtyEnv', () => {
       NODE_DISABLE_COLORS: '1',
       TERM: 'dumb',
       FORCE_COLOR: '0',
+      CLICOLOR: '0',
     });
     expect(env.COLORTERM).toBe('truecolor');
     expect(env.TERM).toBe('xterm-256color');
     expect(env.FORCE_COLOR).toBe('3');
+    expect(env.CLICOLOR).toBe('1');
+    expect(env.CLICOLOR_FORCE).toBe('1');
     expect(env.NO_COLOR).toBeUndefined();
     expect(env.NODE_DISABLE_COLORS).toBeUndefined();
     expect(env.PATH).toBe('/usr/bin');
+  });
+
+  it('cannot be downgraded by overrides', () => {
+    const env = buildInteractivePtyEnv(
+      {},
+      { COLORTERM: 'no', FORCE_COLOR: '0', TERM: 'dumb', NO_COLOR: '1' }
+    );
+    expect(env.COLORTERM).toBe('truecolor');
+    expect(env.FORCE_COLOR).toBe('3');
+    expect(env.TERM).toBe('xterm-256color');
+    expect(env.NO_COLOR).toBeUndefined();
   });
 });
 

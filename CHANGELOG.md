@@ -33,6 +33,7 @@
 * **react:** ship full JetBrains Mono **Nerd Font Mono** weight set (regular/bold/italic/bold-italic) + Symbols Nerd Font for restty glyph coverage (no CDN; fixes tofu / □× icons)
 * **react:** Ghostty-parity restty defaults — WebGPU-first, `Ghostty Default Style Dark`, font-size 13, height sizing, ligatures, **native** alpha blending (Ghostty macOS), 2px window padding, theme conversion from avocado palette bags
 * **node-pty:** advertise `COLORTERM=truecolor` / `FORCE_COLOR=3` on spawn (strip `NO_COLOR`) so TUIs emit 24-bit color instead of washed 16-color palette remaps
+* **playground:** `predev`/`prebuild` rebuild SDK dist (main process externalizes avocado-sdk and would otherwise keep a stale PTY env)
 * **sdk:** restty path smoke e2e (`pnpm test:e2e`) — type, backspace, resize, lifecycle, engine factory
 
 ## [0.2.1](https://github.com/jamesyong-42/avocado/compare/avocado-v0.2.0...avocado-v0.2.1) (2026-04-13)

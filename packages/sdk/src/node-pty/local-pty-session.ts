@@ -56,6 +56,8 @@ export type PTYSpawnFunction = (config: PTYSpawnConfig) => IPty;
  *
  * Strips parent NO_COLOR / dumb TERM from agent/CI shells.
  */
+const COLOR_SUPPRESS_KEYS = new Set(['NO_COLOR', 'NODE_DISABLE_COLORS']);
+
 export function buildInteractivePtyEnv(
   base: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env,
   overrides?: Record<string, string>
@@ -63,21 +65,27 @@ export function buildInteractivePtyEnv(
   const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(base)) {
     if (value === undefined) continue;
-    if (key === 'NO_COLOR' || key === 'NODE_DISABLE_COLORS') continue;
+    if (COLOR_SUPPRESS_KEYS.has(key)) continue;
     env[key] = value;
   }
   if (overrides) {
     for (const [key, value] of Object.entries(overrides)) {
+      if (COLOR_SUPPRESS_KEYS.has(key)) continue;
       env[key] = value;
     }
   }
   // Advertise full color like a modern terminal (Ghostty / iTerm / Kitty).
+  // Applied *after* overrides so callers cannot accidentally downgrade.
   env.TERM = 'xterm-256color';
   env.COLORTERM = 'truecolor';
   // chalk: 1=basic, 2=256, 3=truecolor
   env.FORCE_COLOR = '3';
-  delete env.NO_COLOR;
-  delete env.NODE_DISABLE_COLORS;
+  // macOS / BSD ls colors (override inherited CLICOLOR=0 from agent shells)
+  env.CLICOLOR = '1';
+  env.CLICOLOR_FORCE = '1';
+  for (const key of COLOR_SUPPRESS_KEYS) {
+    delete env[key];
+  }
   return env;
 }
 

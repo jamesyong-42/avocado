@@ -434,6 +434,9 @@ export class AvocadoManager extends EventEmitter {
     rows: number;
   }): { sessionId: string } {
     const sm = this.requireSessionManager();
+    // Truecolor is set inside LocalPTYSession.spawn (COLORTERM=truecolor).
+    // Main process loads avocado-sdk from dist/ (externalized) — rebuild SDK
+    // after env changes or this will silently use a stale package.
     const session = LocalPTYSession.spawn(
       this.spawnFn,
       {
@@ -442,11 +445,21 @@ export class AvocadoManager extends EventEmitter {
         cwd: opts.cwd,
         cols: opts.cols,
         rows: opts.rows,
+        env: {
+          // Belt-and-suspenders: also pass here so even older LocalPTYSession
+          // merge order still sees truecolor when combined with spawn defaults.
+          COLORTERM: 'truecolor',
+          FORCE_COLOR: '3',
+          TERM: 'xterm-256color',
+        },
       },
       {
         command: DEFAULT_COMMAND,
         cwd: opts.cwd,
       }
+    );
+    console.info(
+      `[AvocadoManager] spawned ${session.id} (expect COLORTERM=truecolor in PTY env)`
     );
     sm.registerSession(session);
     return { sessionId: session.id };
