@@ -50,7 +50,9 @@ export type GhosttyParityOptions = {
    */
   fontSizeMode?: 'em' | 'height';
   /**
-   * GPU alpha blending. linear-corrected is closer to modern GPU terminals.
+   * GPU alpha blending. Default `native` matches Ghostty’s macOS default
+   * (Display-P3-style native blend). `linear` / `linear-corrected` often
+   * wash out saturated UI (e.g. Claude effort bars).
    */
   alphaBlending?: 'native' | 'linear' | 'linear-corrected';
   nerdIconScale?: number;
@@ -197,7 +199,8 @@ export async function buildGhosttyParity(
   const fontHintTarget = options.fontHintTarget ?? 'auto';
   // height mode tracks face metrics more like Ghostty cell sizing.
   const fontSizeMode = options.fontSizeMode ?? 'height';
-  const alphaBlending = options.alphaBlending ?? 'linear-corrected';
+  // Ghostty macOS default is native; linear-corrected desaturates midtones.
+  const alphaBlending = options.alphaBlending ?? 'native';
   const nerdIconScale = options.nerdIconScale ?? 1;
   const maxScrollbackBytes = options.maxScrollbackBytes ?? 10_000_000;
 

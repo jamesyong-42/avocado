@@ -69,7 +69,7 @@ export interface TerminalViewCreateOptions {
   resttyLigatures?: boolean;
   /** TrueType atlas hinting (default false — closer to macOS CoreText look). */
   resttyFontHinting?: boolean;
-  /** GPU alpha blending mode. Default `linear-corrected`. */
+  /** GPU alpha blending mode. Default `native` (Ghostty macOS). */
   resttyAlphaBlending?: 'native' | 'linear' | 'linear-corrected';
   /** Scale factor for Nerd Font icons (default 1). */
   resttyNerdIconScale?: number;

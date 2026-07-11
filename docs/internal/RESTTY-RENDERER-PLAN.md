@@ -116,7 +116,7 @@ with × (missing glyph / tofu).
 | `fontSizeMode` | `height` | Closer to Ghostty face metrics |
 | `ligatures` | true | Coding-font default |
 | `fontHinting` | false | Closer to macOS CoreText look |
-| `alphaBlending` | `linear-corrected` | Modern GPU terminal blending |
+| `alphaBlending` | `native` | Ghostty macOS default (avoid washed purples) |
 | `nerdIconScale` | 1 | 1:1 icon scale |
 | `maxScrollbackBytes` | 10MB | restty/Ghostty-scale |
 | host padding | 2px | Ghostty `window-padding-x/y` |

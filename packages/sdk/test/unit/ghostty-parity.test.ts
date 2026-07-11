@@ -49,7 +49,7 @@ describe('buildGhosttyParity', () => {
     expect(parity.terminal.ligatures).toBe(true);
     expect(parity.terminal.fontHinting).toBe(false);
     expect(parity.terminal.fontSizeMode).toBe('height');
-    expect(parity.terminal.alphaBlending).toBe('linear-corrected');
+    expect(parity.terminal.alphaBlending).toBe('native');
     expect(parity.terminal.nerdIconScale).toBe(1);
     expect(parity.terminal.maxScrollbackBytes).toBe(10_000_000);
     expect(parity.terminal.forwardTerminalReplies).toBe(false);
