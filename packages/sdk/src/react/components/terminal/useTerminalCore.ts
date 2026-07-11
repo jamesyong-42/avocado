@@ -1,16 +1,24 @@
 /**
- * useTerminalCore Hook
+ * useTerminalCore — engine-agnostic terminal session wiring.
  *
- * Encapsulates all xterm.js terminal logic including initialization,
- * PTY communication, and resize handling. Uses useAvocadoBackend()
- * instead of window.desktopAPI.
+ * Owns:
+ *   - creating a TerminalView (xterm | restty) via injectable factory
+ *   - TerminalBackend PTY output → view.write
+ *   - view.onData → backend.pty.write
+ *   - fit / resize → backend.terminal.resize when active
+ *
+ * Does not own engine-specific DOM details beyond a host container ref.
  */
 
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
-import { Terminal } from 'xterm';
-import { FitAddon } from '@xterm/addon-fit';
-import type { TerminalCoreState, TerminalCoreActions } from './renderers/types';
-import { useAvocadoBackend } from '../../context/AvocadoProvider';
+import type { TerminalCoreState, TerminalCoreActions } from './renderers/types.js';
+import type {
+  TerminalEngineId,
+  TerminalView,
+  TerminalViewFactory,
+} from './views/types.js';
+import { defaultTerminalViewFactory } from './views/create-terminal-view.js';
+import { useAvocadoBackend } from '../../context/AvocadoProvider.js';
 
 /**
  * Decode base64 to UTF-8 bytes properly.
@@ -49,13 +57,20 @@ export interface UseTerminalCoreOptions {
   fontFamily?: string;
   convertEol?: boolean;
   suppressTerminalResponses?: boolean;
-  onRender?: () => void;
-  useWebGLRenderer?: boolean;
+  /** Terminal rendering engine (default: xterm). */
+  engine?: TerminalEngineId;
+  /**
+   * Injectable view factory (tests / custom engines).
+   * Defaults to {@link defaultTerminalViewFactory}.
+   */
+  createView?: TerminalViewFactory;
 }
 
 export interface UseTerminalCoreResult {
   state: TerminalCoreState;
   actions: TerminalCoreActions;
+  /** Last engine create error, if any. */
+  error: Error | null;
 }
 
 export function useTerminalCore({
@@ -73,248 +88,242 @@ export function useTerminalCore({
   fontFamily = 'Menlo, Monaco, "Courier New", monospace',
   convertEol = false,
   suppressTerminalResponses = false,
-  onRender,
-  useWebGLRenderer = false,
+  engine = 'xterm',
+  createView = defaultTerminalViewFactory,
 }: UseTerminalCoreOptions): UseTerminalCoreResult {
   const backend = useAvocadoBackend();
 
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const terminalRef = useRef<Terminal | null>(null);
-  const fitAddonRef = useRef<FitAddon | null>(null);
+  const viewRef = useRef<TerminalView | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const unsubscribersRef = useRef<Array<() => void>>([]);
 
   const [isReady, setIsReady] = useState(false);
   const [dimensions, setDimensions] = useState({ cols, rows });
-  const [fixedDimensions, setFixedDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [fixedDimensions, setFixedDimensions] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const [error, setError] = useState<Error | null>(null);
 
   const isActiveRef = useRef(isActive);
   const autoResizeRef = useRef(autoResize);
   const prevIsActiveRef = useRef(isActive);
-  const onRenderRef = useRef(onRender);
   const onFocusRef = useRef(onFocus);
   const onBlurRef = useRef(onBlur);
+  const onResizeRef = useRef(onResize);
+  const onInputRef = useRef(onInput);
+  const suppressRef = useRef(suppressTerminalResponses);
 
   isActiveRef.current = isActive;
   autoResizeRef.current = autoResize;
-  onRenderRef.current = onRender;
   onFocusRef.current = onFocus;
   onBlurRef.current = onBlur;
+  onResizeRef.current = onResize;
+  onInputRef.current = onInput;
+  suppressRef.current = suppressTerminalResponses;
 
   const sendResizeToPty = useCallback(
-    (newCols: number, newRows: number, _reason: string) => {
+    (newCols: number, newRows: number) => {
       if (!isActiveRef.current) return;
       backend.terminal.resize(terminalId, newCols, newRows);
     },
     [terminalId, backend]
   );
 
-  const fitAndResize = useCallback(
-    (reason: string) => {
-      if (!fitAddonRef.current || !terminalRef.current) return;
-      fitAddonRef.current.fit();
-      const newCols = terminalRef.current.cols;
-      const newRows = terminalRef.current.rows;
-      setDimensions({ cols: newCols, rows: newRows });
-      onResize?.(newCols, newRows);
-      sendResizeToPty(newCols, newRows, reason);
-    },
-    [onResize, sendResizeToPty]
-  );
+  /**
+   * Engine-driven fit only. PTY resize ownership is **single-direction**:
+   * `view.onResize` → backend. Host-driven `view.resize()` must not re-emit
+   * onResize (engines suppress), so this path never double-fires with host props.
+   */
+  const fitAndResize = useCallback(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const prevCols = view.cols;
+    const prevRows = view.rows;
+    view.fit();
+    // UI dimensions: onResize also setDimensions; this covers engines that
+    // update cols/rows in fit() without a separate emit race.
+    if (view.cols !== prevCols || view.rows !== prevRows) {
+      setDimensions({ cols: view.cols, rows: view.rows });
+    }
+  }, []);
 
   // Handle isActive change
   useEffect(() => {
     const wasActive = prevIsActiveRef.current;
     prevIsActiveRef.current = isActive;
 
-    if (isActive && !wasActive && autoResize && terminalRef.current && fitAddonRef.current) {
-      setTimeout(() => fitAndResize('activation'), 0);
+    if (isActive && !wasActive && autoResize && viewRef.current) {
+      setTimeout(() => fitAndResize(), 0);
     }
 
-    if (!isActive && wasActive && terminalRef.current) {
-      terminalRef.current.blur();
+    if (!isActive && wasActive && viewRef.current) {
+      viewRef.current.blur();
     }
   }, [isActive, autoResize, fitAndResize]);
 
   // Apply external dimension changes
   useEffect(() => {
-    if (!terminalRef.current) return;
+    if (!viewRef.current) return;
     if (autoResize && isActive) return;
-    if (terminalRef.current.cols === cols && terminalRef.current.rows === rows) return;
-    terminalRef.current.resize(cols, rows);
+    if (viewRef.current.cols === cols && viewRef.current.rows === rows) return;
+    viewRef.current.resize(cols, rows);
     setDimensions({ cols, rows });
   }, [cols, rows, autoResize, isActive]);
 
-  // Initialize terminal
+  // Create / dispose terminal view when identity or engine changes
   useEffect(() => {
-    if (!containerRef.current || terminalRef.current) return;
+    let cancelled = false;
 
-    let initTimer: ReturnType<typeof setTimeout> | null = null;
+    setIsReady(false);
+    setError(null);
 
-    initTimer = setTimeout(() => {
-      if (!containerRef.current || terminalRef.current) return;
+    const isUdsTerminal = convertEol;
+    const cursorBlink = isUdsTerminal ? false : true;
+    const cursorColor = isUdsTerminal ? 'transparent' : undefined;
 
-      const isUdsTerminal = convertEol;
-      const effectiveCursorBlink = isUdsTerminal ? false : true;
-      const cursorColor = isUdsTerminal ? 'transparent' : '#c0caf5';
+    (async () => {
+      try {
+        // Wait for layout so the host has non-zero size before engine mount
+        // (critical for restty canvas + xterm FitAddon).
+        const raf =
+          typeof requestAnimationFrame === 'function'
+            ? requestAnimationFrame
+            : (cb: FrameRequestCallback) =>
+                setTimeout(() => cb(Date.now()), 0) as unknown as number;
+        await new Promise<void>((r) => raf(() => raf(() => r())));
+        if (cancelled) return;
 
-      const term = new Terminal({
-        cols,
-        rows,
-        fontSize,
-        fontFamily,
-        cursorBlink: effectiveCursorBlink,
-        cursorStyle: 'block',
-        convertEol,
-        scrollback: 10000,
-        theme: {
-          background: '#1a1b26',
-          foreground: '#c0caf5',
-          cursor: cursorColor,
-          cursorAccent: '#1a1b26',
-          selectionBackground: '#3b3b5c',
-          black: '#15161e',
-          red: '#f7768e',
-          green: '#9ece6a',
-          yellow: '#e0af68',
-          blue: '#7aa2f7',
-          magenta: '#bb9af7',
-          cyan: '#7dcfff',
-          white: '#a9b1d6',
-          brightBlack: '#414868',
-          brightRed: '#f7768e',
-          brightGreen: '#9ece6a',
-          brightYellow: '#e0af68',
-          brightBlue: '#7aa2f7',
-          brightMagenta: '#bb9af7',
-          brightCyan: '#7dcfff',
-          brightWhite: '#c0caf5',
-        },
-      });
-
-      const fit = new FitAddon();
-      term.loadAddon(fit);
-      term.open(containerRef.current!);
-
-      if (useWebGLRenderer && typeof document !== 'undefined') {
-        import('@xterm/addon-webgl')
-          .then(({ WebglAddon }) => {
-            try {
-              const webglAddon = new WebglAddon();
-              webglAddon.onContextLoss(() => webglAddon.dispose());
-              term.loadAddon(webglAddon);
-            } catch {
-              // WebGL addon failed to load
-            }
-          })
-          .catch(() => {
-            // Failed to import WebGL addon
-          });
-      }
-
-      if (isUdsTerminal) {
-        term.write('\x1b[?25l');
-      }
-
-      terminalRef.current = term;
-      fitAddonRef.current = fit;
-
-      const renderDisposable = term.onWriteParsed(() => {
-        onRenderRef.current?.();
-      });
-
-      if (autoResize) {
-        fit.fit();
-        const initialCols = term.cols;
-        const initialRows = term.rows;
-        setDimensions({ cols: initialCols, rows: initialRows });
-
-        const resizeObserver = new ResizeObserver(() => {
-          if (fitAddonRef.current && terminalRef.current) {
-            fitAndResize('container-resize');
-          }
-        });
-        resizeObserver.observe(containerRef.current!);
-        resizeObserverRef.current = resizeObserver;
-
-        if (isActiveRef.current) {
-          sendResizeToPty(initialCols, initialRows, 'init');
+        const container = containerRef.current;
+        if (!container) {
+          throw new Error('[avocado] Terminal host container is not mounted');
         }
-      } else {
-        requestAnimationFrame(() => {
-          if (!containerRef.current) return;
-          const viewport = containerRef.current.querySelector('.xterm-viewport');
-          if (viewport) {
-            const rect = viewport.getBoundingClientRect();
-            setFixedDimensions({ width: Math.ceil(rect.width) + 2, height: Math.ceil(rect.height) + 2 });
+
+        const view = await createView(engine, {
+          container,
+          cols,
+          rows,
+          fontSize,
+          fontFamily,
+          convertEol,
+          cursorBlink,
+          cursorColor,
+        });
+        if (cancelled) {
+          view.dispose();
+          return;
+        }
+
+        viewRef.current = view;
+
+        const unsubData = view.onData((data) => {
+          if (suppressRef.current) {
+            if (isTerminalResponse(data)) return;
+            if (data === '\x1b[I' || data === '\x1b[O') return;
+          }
+          backend.pty.write(sessionId, data);
+          onInputRef.current?.(data);
+        });
+
+        // Engine-driven resize only (fit / restty autoResize / transport.resize).
+        const unsubResize = view.onResize(({ cols: c, rows: r }) => {
+          setDimensions({ cols: c, rows: r });
+          onResizeRef.current?.(c, r);
+          sendResizeToPty(c, r);
+        });
+
+        const unsubLifecycle =
+          view.onLifecycle?.((event) => {
+            if (event.type === 'error') {
+              console.warn('[useTerminalCore] view lifecycle error:', event.message);
+              setError(new Error(event.message));
+            } else if (event.type === 'exit') {
+              console.info('[useTerminalCore] view session exit', event.code);
+            }
+          }) ?? (() => {});
+
+        unsubscribersRef.current = [unsubData, unsubResize, unsubLifecycle];
+
+        if (isUdsTerminal) {
+          view.write('\x1b[?25l');
+        }
+
+        if (autoResizeRef.current) {
+          view.fit();
+          setDimensions({ cols: view.cols, rows: view.rows });
+          if (resizeObserverRef.current) {
+            resizeObserverRef.current.disconnect();
+          }
+          const resizeObserver = new ResizeObserver(() => {
+            if (viewRef.current) fitAndResize();
+          });
+          resizeObserver.observe(container);
+          resizeObserverRef.current = resizeObserver;
+          // Initial size → PTY (host intent at attach).
+          if (isActiveRef.current) {
+            sendResizeToPty(view.cols, view.rows);
+          }
+        } else {
+          const rect = container.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            setFixedDimensions({
+              width: Math.ceil(rect.width),
+              height: Math.ceil(rect.height),
+            });
           } else {
             const charWidth = fontSize * 0.6;
             const lineHeight = fontSize * 1.2;
-            setFixedDimensions({ width: Math.ceil(cols * charWidth) + 20, height: Math.ceil(rows * lineHeight) + 10 });
+            setFixedDimensions({
+              width: Math.ceil(cols * charWidth) + 20,
+              height: Math.ceil(rows * lineHeight) + 10,
+            });
           }
-        });
-      }
-
-      // Handle user input - use backend instead of window.desktopAPI
-      term.onData((data) => {
-        if (suppressTerminalResponses) {
-          if (isTerminalResponse(data)) return;
-          if (data === '\x1b[I' || data === '\x1b[O') return;
         }
-        backend.pty.write(sessionId, data);
-        onInput?.(data);
-      });
 
-      term.onResize(({ cols: newCols, rows: newRows }) => {
-        setDimensions({ cols: newCols, rows: newRows });
-        onResize?.(newCols, newRows);
-      });
-
-      // Wire xterm's native focus/blur to the callbacks. This is critical
-      // because xterm's internal textarea captures DOM focus events before
-      // they reach the container div's onFocusCapture.
-      term.textarea?.addEventListener('focus', () => {
-        onFocusRef.current?.();
-      });
-      term.textarea?.addEventListener('blur', () => {
-        onBlurRef.current?.();
-      });
-
-      term.focus();
-      setIsReady(true);
-
-      return () => {
-        renderDisposable.dispose();
-      };
-    }, 0);
+        // Focus after a tick so engine IME/textarea exists.
+        requestAnimationFrame(() => {
+          if (!cancelled) view.focus();
+        });
+        setIsReady(true);
+      } catch (err) {
+        if (cancelled) return;
+        const e = err instanceof Error ? err : new Error(String(err));
+        console.error('[useTerminalCore] failed to create view', e);
+        setError(e);
+        setIsReady(false);
+      }
+    })();
 
     return () => {
-      if (initTimer) clearTimeout(initTimer);
+      cancelled = true;
       if (resizeObserverRef.current) {
         resizeObserverRef.current.disconnect();
         resizeObserverRef.current = null;
       }
-      if (terminalRef.current) {
-        terminalRef.current.dispose();
-        terminalRef.current = null;
-        fitAddonRef.current = null;
+      for (const u of unsubscribersRef.current) u();
+      unsubscribersRef.current = [];
+      if (viewRef.current) {
+        viewRef.current.dispose();
+        viewRef.current = null;
       }
       setIsReady(false);
     };
-  }, [sessionId, terminalId]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Intentionally stable on session/terminal/engine — option changes remount via keys at call site if needed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, terminalId, engine, createView]);
 
   // Handle autoResize toggle
   useEffect(() => {
-    if (!terminalRef.current || !fitAddonRef.current || !containerRef.current) return;
+    if (!viewRef.current || !containerRef.current) return;
 
     if (autoResize) {
       setFixedDimensions(null);
-      fitAndResize('autoResize-enabled');
+      fitAndResize();
 
       if (!resizeObserverRef.current) {
         const resizeObserver = new ResizeObserver(() => {
-          if (fitAddonRef.current && terminalRef.current) {
-            fitAndResize('container-resize');
-          }
+          if (viewRef.current) fitAndResize();
         });
         resizeObserver.observe(containerRef.current);
         resizeObserverRef.current = resizeObserver;
@@ -324,22 +333,22 @@ export function useTerminalCore({
         resizeObserverRef.current.disconnect();
         resizeObserverRef.current = null;
       }
-      const viewport = containerRef.current.querySelector('.xterm-viewport');
-      if (viewport) {
-        const rect = viewport.getBoundingClientRect();
-        setFixedDimensions({ width: Math.ceil(rect.width) + 2, height: Math.ceil(rect.height) + 2 });
-      }
+      const rect = containerRef.current.getBoundingClientRect();
+      setFixedDimensions({
+        width: Math.ceil(rect.width),
+        height: Math.ceil(rect.height),
+      });
     }
   }, [autoResize, fitAndResize]);
 
-  // Subscribe to PTY output - use backend instead of window.desktopAPI
+  // Subscribe to PTY output
   useEffect(() => {
     const unsubscribe = backend.pty.onOutput(
       (outputTerminalId: string, _outputSessionId: string, base64Data: string) => {
-        if (outputTerminalId === terminalId && terminalRef.current) {
+        if (outputTerminalId === terminalId && viewRef.current) {
           try {
             const data = decodeBase64ToBytes(base64Data);
-            terminalRef.current.write(data);
+            viewRef.current.write(data);
           } catch {
             // Failed to write to terminal
           }
@@ -347,26 +356,35 @@ export function useTerminalCore({
       }
     );
 
-    return () => { unsubscribe(); };
+    return () => {
+      unsubscribe();
+    };
   }, [terminalId, backend]);
 
   const actions: TerminalCoreActions = useMemo(
     () => ({
-      focus: () => terminalRef.current?.focus(),
-      blur: () => terminalRef.current?.blur(),
-      fit: () => fitAddonRef.current?.fit(),
-      write: (data: string | Uint8Array) => terminalRef.current?.write(data),
-      resize: (newCols: number, newRows: number) => terminalRef.current?.resize(newCols, newRows),
+      focus: () => viewRef.current?.focus(),
+      blur: () => viewRef.current?.blur(),
+      fit: () => viewRef.current?.fit(),
+      write: (data: string | Uint8Array) => viewRef.current?.write(data),
+      resize: (newCols: number, newRows: number) =>
+        viewRef.current?.resize(newCols, newRows),
     }),
     []
   );
 
   const state: TerminalCoreState = useMemo(
-    () => ({ terminalRef, fitAddonRef, containerRef, isReady, dimensions, fixedDimensions }),
-    [isReady, dimensions, fixedDimensions]
+    () => ({
+      containerRef,
+      isReady,
+      dimensions,
+      fixedDimensions,
+      engine,
+    }),
+    [isReady, dimensions, fixedDimensions, engine]
   );
 
-  return { state, actions };
+  return { state, actions, error };
 }
 
 export default useTerminalCore;

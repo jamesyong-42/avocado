@@ -943,7 +943,7 @@ bridge.<span class="fn">initialize</span>(udsServer);
       <!-- React -->
       <section class="doc-section" id="react">
         <h2>React <span class="path">…/react</span></h2>
-        <p class="lead">Components, hooks, and renderers. <strong>Peers:</strong> <code>react</code>, <code>xterm</code>, <code>@xterm/addon-fit</code>. WebGL path also needs <code>three</code>, <code>@react-three/fiber</code>, <code>@react-three/postprocessing</code>, <code>postprocessing</code> (and typically <code>@xterm/addon-webgl</code>).</p>
+        <p class="lead">Components, hooks, and pluggable terminal engines. <strong>Peers:</strong> <code>react</code>, <code>xterm</code>, <code>@xterm/addon-fit</code>. Optional Ghostty VT path: <code>restty</code>.</p>
 
         <h3>Context</h3>
         <div class="symbol">
@@ -985,18 +985,11 @@ bridge.<span class="fn">initialize</span>(udsServer);
         </div>
         <div class="symbol">
           <div class="symbol-head">
-            <span class="symbol-kind kind-comp">component</span>
-            <span class="symbol-name">&lt;DefaultRenderer&gt;</span>
-          </div>
-          <div class="symbol-body"><p>xterm.js renderer — the default path.</p></div>
-        </div>
-        <div class="symbol">
-          <div class="symbol-head">
-            <span class="symbol-kind kind-comp">component</span>
-            <span class="symbol-name">WebGL · CRTEffect · TerminalPlane</span>
+            <span class="symbol-kind kind-type">type</span>
+            <span class="symbol-name">TerminalView · TerminalEngineId</span>
           </div>
           <div class="symbol-body">
-            <p>three.js / R3F renderer with optional CRT shader. Presets via <code>getPreset</code>, <code>mergeWithPreset</code>, <code>getPresetNames</code>, <code>PRESETS</code>. Texture sync: <code>useTextureSync</code>, <code>findXtermCanvas</code>.</p>
+            <p>Engine-neutral view contract. Engines: <code>'xterm'</code> (default) and <code>'restty'</code> (libghostty-vt). Factory: <code>createTerminalView(engine, options)</code>. Wire via <code>&lt;VirtualTerminal engine=&quot;restty&quot; /&gt;</code> or <code>useTerminalCore({ engine })</code>.</p>
           </div>
         </div>
 
@@ -1015,8 +1008,8 @@ bridge.<span class="fn">initialize</span>(udsServer);
           </table>
         </div>
 
-        <h3>Renderer types</h3>
-        <p><code>CRTOptions</code>, <code>BloomOptions</code>, <code>RendererOptions</code>, <code>CRTPreset</code>, <code>RendererType</code>, <code>TerminalCoreState</code>, <code>TerminalCoreActions</code>, <code>TerminalRendererProps</code>, <code>VirtualTerminalRendererProps</code>.</p>
+        <h3>View / core types</h3>
+        <p><code>TerminalEngineId</code>, <code>TerminalView</code>, <code>TerminalViewCreateOptions</code>, <code>TerminalViewFactory</code>, <code>TerminalCoreState</code>, <code>TerminalCoreActions</code>.</p>
       </section>
 
       <!-- CLI -->

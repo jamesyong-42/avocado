@@ -4,9 +4,9 @@
 
 import React, { useCallback, type JSX } from 'react';
 import type { TerminalInfo, TerminalSettings, PtySession } from '#types';
-import type { RendererType, CRTPreset } from './renderers/types';
-import { VirtualTerminal } from './VirtualTerminal';
-import { HeadlessTerminal } from './HeadlessTerminal';
+import type { TerminalEngineId } from './views/types.js';
+import { VirtualTerminal } from './VirtualTerminal.js';
+import { HeadlessTerminal } from './HeadlessTerminal.js';
 
 export interface TerminalCardProps {
   terminal: TerminalInfo;
@@ -17,8 +17,7 @@ export interface TerminalCardProps {
   onClose: () => void;
   onFocus: () => void;
   onBlur: () => void;
-  renderer?: RendererType;
-  crtPreset?: CRTPreset;
+  engine?: TerminalEngineId;
 }
 
 export function TerminalCard({
@@ -30,8 +29,7 @@ export function TerminalCard({
   onClose,
   onFocus,
   onBlur,
-  renderer = 'default',
-  crtPreset = 'classic',
+  engine = 'xterm',
 }: TerminalCardProps): JSX.Element {
   const isUdsSession = session?.source === 'ipc';
   const hasCustomSize = settings.width !== undefined && settings.height !== undefined;
@@ -87,7 +85,7 @@ export function TerminalCard({
       </div>
       <div style={{ flex: 1, overflow: settings.autoResize ? 'hidden' : 'auto', position: 'relative' }}>
         {terminal.type === 'virtual' ? (
-          <VirtualTerminal sessionId={terminal.sessionId} terminalId={terminal.id} cols={terminal.cols} rows={terminal.rows} isActive={terminal.mode === 'active'} autoResize={terminalAutoResize} convertEol={isUdsSession} suppressTerminalResponses={isUdsSession} onFocus={onFocus} onBlur={onBlur} renderer={renderer} crtPreset={crtPreset} />
+          <VirtualTerminal sessionId={terminal.sessionId} terminalId={terminal.id} cols={terminal.cols} rows={terminal.rows} isActive={terminal.mode === 'active'} autoResize={terminalAutoResize} convertEol={isUdsSession} suppressTerminalResponses={isUdsSession} onFocus={onFocus} onBlur={onBlur} engine={engine} />
         ) : (
           <HeadlessTerminal sessionId={terminal.sessionId} terminalId={terminal.id} cols={terminal.cols} rows={terminal.rows} isActive={terminal.mode === 'active'} showLineNumbers showCursor />
         )}

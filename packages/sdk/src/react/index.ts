@@ -5,57 +5,90 @@
  */
 
 // Context
-export { AvocadoProvider, useAvocadoBackend } from './context/AvocadoProvider';
-export type { AvocadoProviderProps } from './context/AvocadoProvider';
+export { AvocadoProvider, useAvocadoBackend } from './context/AvocadoProvider.js';
+export type { AvocadoProviderProps } from './context/AvocadoProvider.js';
 
 // Components
-export { VirtualTerminal } from './components/terminal/VirtualTerminal';
-export type { VirtualTerminalProps } from './components/terminal/VirtualTerminal';
+export { VirtualTerminal } from './components/terminal/VirtualTerminal.js';
+export type { VirtualTerminalProps } from './components/terminal/VirtualTerminal.js';
 
-export { HeadlessTerminal } from './components/terminal/HeadlessTerminal';
-export type { HeadlessTerminalProps } from './components/terminal/HeadlessTerminal';
+export { HeadlessTerminal } from './components/terminal/HeadlessTerminal.js';
+export type { HeadlessTerminalProps } from './components/terminal/HeadlessTerminal.js';
 
-export { TerminalCard } from './components/terminal/TerminalCard';
-export type { TerminalCardProps } from './components/terminal/TerminalCard';
+export { TerminalCard } from './components/terminal/TerminalCard.js';
+export type { TerminalCardProps } from './components/terminal/TerminalCard.js';
 
-export { TerminalGrid } from './components/terminal/TerminalGrid';
-export type { TerminalGridProps, GridLayout } from './components/terminal/TerminalGrid';
+export { TerminalGrid } from './components/terminal/TerminalGrid.js';
+export type { TerminalGridProps, GridLayout } from './components/terminal/TerminalGrid.js';
 
-export { useTerminalCore } from './components/terminal/useTerminalCore';
-export type { UseTerminalCoreOptions, UseTerminalCoreResult } from './components/terminal/useTerminalCore';
-
-// Renderers
-export { DefaultRenderer } from './components/terminal/renderers/DefaultRenderer';
-export { CRTEffect, CRTEffectImpl } from './components/terminal/renderers/webgl/CRTEffect';
-export { TerminalPlane } from './components/terminal/renderers/webgl/TerminalPlane';
-export { useTextureSync, findXtermCanvas } from './components/terminal/renderers/webgl/useTextureSync';
-export { getPreset, mergeWithPreset, getPresetNames, PRESETS } from './components/terminal/renderers/presets';
-
-// Renderer types
+export { useTerminalCore } from './components/terminal/useTerminalCore.js';
 export type {
-  CRTOptions,
-  BloomOptions,
-  RendererOptions,
-  CRTPreset,
-  RendererType,
+  UseTerminalCoreOptions,
+  UseTerminalCoreResult,
+} from './components/terminal/useTerminalCore.js';
+
+// Pluggable terminal views (xterm | restty)
+export {
+  createTerminalView,
+  defaultTerminalViewFactory,
+  createXtermTerminalView,
+  createResttyTerminalView,
+  XtermTerminalView,
+  ResttyTerminalView,
+} from './components/terminal/views/index.js';
+export type {
+  TerminalEngineId,
+  TerminalView,
+  TerminalViewCreateOptions,
+  TerminalViewFactory,
+  TerminalViewTheme,
+  TerminalViewLifecycleEvent,
+  Unsubscribe,
+  CreateTerminalViewDeps,
+  LoadRestty,
+  LoadResttyXterm,
+  ResttyInstance,
+  ResttyCtor,
+  ResttyXtermTerminal,
+  ResttyXtermTerminalCtor,
+  AvocadoPtyTransportHandlers,
+  AvocadoPtyLifecycleState,
+  AvocadoPtyLifecycleEvent,
+  AvocadoPtyCallbacks,
+  AvocadoPtyConnectOptions,
+  AvocadoPtyResizeMeta,
+  BundledFontFace,
+} from './components/terminal/views/index.js';
+
+export {
+  AvocadoPtyTransport,
+  createAvocadoPtyTransport,
+  loadBundledMonoFont,
+} from './components/terminal/views/index.js';
+
+export type {
   TerminalCoreState,
   TerminalCoreActions,
-  TerminalRendererProps,
-  VirtualTerminalRendererProps,
-} from './components/terminal/renderers/types';
+} from './components/terminal/renderers/types.js';
 
 // Hooks
-export { usePTYSessions } from './hooks/terminal/usePTYSessions';
-export type { UsePTYSessionsResult, SessionSourceFilter } from './hooks/terminal/usePTYSessions';
+export { usePTYSessions } from './hooks/terminal/usePTYSessions.js';
+export type {
+  UsePTYSessionsResult,
+  SessionSourceFilter,
+} from './hooks/terminal/usePTYSessions.js';
 
-export { useTerminals } from './hooks/terminal/useTerminals';
-export type { UseTerminalsResult } from './hooks/terminal/useTerminals';
+export { useTerminals } from './hooks/terminal/useTerminals.js';
+export type { UseTerminalsResult } from './hooks/terminal/useTerminals.js';
 
-export { useTerminalGrid } from './hooks/terminal/useTerminalGrid';
-export type { UseTerminalGridResult } from './hooks/terminal/useTerminalGrid';
+export { useTerminalGrid } from './hooks/terminal/useTerminalGrid.js';
+export type { UseTerminalGridResult } from './hooks/terminal/useTerminalGrid.js';
 
-export { useTerminalAPI } from './hooks/terminal/useTerminalAPI';
-export type { UseTerminalAPIResult } from './hooks/terminal/useTerminalAPI';
+export { useTerminalAPI } from './hooks/terminal/useTerminalAPI.js';
+export type { UseTerminalAPIResult } from './hooks/terminal/useTerminalAPI.js';
 
-export { useRemoteSessions } from './hooks/terminal/useRemoteSessions';
-export type { UseRemoteSessionsResult, RemoteSessionOffer } from './hooks/terminal/useRemoteSessions';
+export { useRemoteSessions } from './hooks/terminal/useRemoteSessions.js';
+export type {
+  UseRemoteSessionsResult,
+  RemoteSessionOffer,
+} from './hooks/terminal/useRemoteSessions.js';

@@ -11,11 +11,27 @@
   * Inbound `msg.from` is a `Peer` (or Tailscale id string fallback) — WhoIs-verified, never a self-declared ULID fallback.
   * Playground `PeerInfo` now exposes `peerRef`, `displayName`, and `deviceId: string | null`.
 
+### ⚠ BREAKING CHANGES (react renderers)
+
+* Removed the Three.js / R3F CRT WebGL path (`CRTEffect`, `TerminalPlane`,
+  `useTextureSync`, CRT presets, `renderer` / `crtPreset` props).
+* Optional peers dropped: `three`, `@react-three/*`, `postprocessing`,
+  `@xterm/addon-webgl`.
+* `VirtualTerminal` now takes `engine?: 'xterm' | 'restty'` instead of
+  `renderer` / CRT options.
+
 ### Features
 
 * **transport-truffle:** migrate to truffle 0.6 Peer-first API (RFC 022)
 * **transport-truffle:** create MeshPTYTransports for online peers (not only `wsConnected`); eager identity often leaves WS down after hello
 * **sdk:** add Vitest unit/integration suite (`pnpm test`) covering types, core, IPC wire, truffle transports (mocked), UDS, node-pty, and optional live mesh
+* **react:** pluggable `TerminalView` engines — default **xterm**, optional **restty** (libghostty-vt via `restty` peer)
+* **react:** retire brittle CRT/Three.js WebGL compositor
+* **react:** first-class `AvocadoPtyTransport` for restty (no local echo; keys → avocado, display via `sendInput(..., "pty")`)
+* **react:** terminal view lifecycle events (`connected` / `disconnected` / `exit` / `error`)
+* **react:** single-direction resize ownership — host `resize()` does not re-emit; engine fit/autoResize drives PTY size
+* **react:** ship bundled JetBrains Mono under `packages/sdk/assets/fonts` for restty (CDN not required)
+* **sdk:** restty path smoke e2e (`pnpm test:e2e`) — type, backspace, resize, lifecycle, engine factory
 
 ## [0.2.1](https://github.com/jamesyong-42/avocado/compare/avocado-v0.2.0...avocado-v0.2.1) (2026-04-13)
 

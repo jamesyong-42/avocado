@@ -171,7 +171,8 @@ Runs both the node-side and renderer-side TS configs in strict mode.
 - Settings persistence
 - electron-builder packaging
 - Multiple `BrowserWindow`s
-- WebGL CRT effects (`<VirtualTerminal renderer="default">` only)
+- ~~WebGL CRT path~~ (removed; future effects via restty shaders if needed)
+- Optional **restty** engine (libghostty-vt) via grid Engine toggle
 - Cross-platform testing beyond darwin
 - Tests
 - Headless terminals (the `terminal.createHeadless` IPC handler returns
