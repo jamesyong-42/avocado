@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { LocalPTYSession, type IPty } from '../../src/node-pty/local-pty-session.js';
+import {
+  LocalPTYSession,
+  buildInteractivePtyEnv,
+  type IPty,
+} from '../../src/node-pty/local-pty-session.js';
 
 function createFakePty(overrides: Partial<IPty> = {}): IPty & {
   dataCb?: (data: string) => void;
@@ -70,7 +74,7 @@ describe('LocalPTYSession', () => {
     session.dispose();
   });
 
-  it('spawn factory uses provided spawn function', () => {
+  it('spawn factory uses provided spawn function and truecolor env', () => {
     const pty = createFakePty({ pid: 9, cols: 100, rows: 50 });
     const spawn = vi.fn(() => pty);
     const session = LocalPTYSession.spawn(
@@ -79,8 +83,32 @@ describe('LocalPTYSession', () => {
       { command: 'bash' }
     );
     expect(spawn).toHaveBeenCalled();
+    const cfg = spawn.mock.calls[0]![0];
+    expect(cfg.env.COLORTERM).toBe('truecolor');
+    expect(cfg.env.TERM).toBe('xterm-256color');
+    expect(cfg.env.FORCE_COLOR).toBe('3');
+    expect(cfg.name).toBe('xterm-256color');
     expect(session.pid).toBe(9);
     expect(session.cols).toBe(100);
     session.dispose();
   });
 });
+
+describe('buildInteractivePtyEnv', () => {
+  it('advertises truecolor and strips NO_COLOR from parent', () => {
+    const env = buildInteractivePtyEnv({
+      PATH: '/usr/bin',
+      NO_COLOR: '1',
+      NODE_DISABLE_COLORS: '1',
+      TERM: 'dumb',
+      FORCE_COLOR: '0',
+    });
+    expect(env.COLORTERM).toBe('truecolor');
+    expect(env.TERM).toBe('xterm-256color');
+    expect(env.FORCE_COLOR).toBe('3');
+    expect(env.NO_COLOR).toBeUndefined();
+    expect(env.NODE_DISABLE_COLORS).toBeUndefined();
+    expect(env.PATH).toBe('/usr/bin');
+  });
+});
+

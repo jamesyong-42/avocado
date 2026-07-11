@@ -47,6 +47,40 @@ export interface PTYSpawnConfig {
  */
 export type PTYSpawnFunction = (config: PTYSpawnConfig) => IPty;
 
+/**
+ * Build env for an interactive PTY so apps (Claude Code, rich TUIs) emit
+ * 24-bit truecolor instead of remapping through the 16/256 palette.
+ *
+ * Ghostty sets COLORTERM=truecolor; without it many tools fall back to
+ * indexed colors and look washed-out under a pastel theme palette.
+ *
+ * Strips parent NO_COLOR / dumb TERM from agent/CI shells.
+ */
+export function buildInteractivePtyEnv(
+  base: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env,
+  overrides?: Record<string, string>
+): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const [key, value] of Object.entries(base)) {
+    if (value === undefined) continue;
+    if (key === 'NO_COLOR' || key === 'NODE_DISABLE_COLORS') continue;
+    env[key] = value;
+  }
+  if (overrides) {
+    for (const [key, value] of Object.entries(overrides)) {
+      env[key] = value;
+    }
+  }
+  // Advertise full color like a modern terminal (Ghostty / iTerm / Kitty).
+  env.TERM = 'xterm-256color';
+  env.COLORTERM = 'truecolor';
+  // chalk: 1=basic, 2=256, 3=truecolor
+  env.FORCE_COLOR = '3';
+  delete env.NO_COLOR;
+  delete env.NODE_DISABLE_COLORS;
+  return env;
+}
+
 // ===============================================================================
 // LOCAL PTY SESSION
 // ===============================================================================
@@ -96,15 +130,11 @@ export class LocalPTYSession extends BasePTYSession {
       command: config.command,
       args: config.args ?? [],
       cwd: config.cwd ?? process.cwd(),
-      env: {
-        ...process.env,
-        ...config.env,
-        TERM: 'xterm-256color',
-        FORCE_COLOR: '1',
-      } as Record<string, string>,
+      env: buildInteractivePtyEnv(process.env, config.env),
       cols: config.cols ?? DEFAULT_COLS,
       rows: config.rows ?? DEFAULT_ROWS,
-      name: config.name ?? 'xterm-color',
+      // termios/terminfo name — must advertise 256color for apps that check it
+      name: config.name ?? 'xterm-256color',
     });
 
     return new LocalPTYSession(pty, {
