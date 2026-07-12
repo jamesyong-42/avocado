@@ -22,10 +22,16 @@ export interface IPty {
   readonly pid: number;
   readonly cols: number;
   readonly rows: number;
-  write(data: string): void;
+  // string | Buffer so a byte-exact spawn (node-pty with encoding:null) can be
+  // injected: onData then delivers raw Buffers, letting malformed UTF-8 and
+  // binary sequences (mouse reports, etc.) survive recording unmangled. A
+  // default string-mode node-pty still satisfies this: string is assignable to
+  // string | Buffer, and the double-contravariant onData callback direction
+  // keeps its string-only signature assignable to the widened one.
+  write(data: string | Buffer): void;
   resize(cols: number, rows: number): void;
   kill(signal?: string): void;
-  onData: (callback: (data: string) => void) => { dispose: () => void };
+  onData: (callback: (data: string | Buffer) => void) => { dispose: () => void };
   onExit: (callback: (exit: { exitCode: number; signal?: number }) => void) => { dispose: () => void };
 }
 
@@ -157,7 +163,10 @@ export class LocalPTYSession extends BasePTYSession {
   // ---------------------------------------------------------------------------
 
   private setupListeners(): void {
-    this.dataDisposable = this.pty.onData((data: string) => {
+    this.dataDisposable = this.pty.onData((data: string | Buffer) => {
+      // Buffer.from(buf) copies bytes directly (no utf8 round-trip); a string
+      // is encoded as utf8. Byte-exact Buffer input therefore passes through
+      // unmangled.
       this.pushOutput(Buffer.from(data));
     });
 
@@ -172,8 +181,10 @@ export class LocalPTYSession extends BasePTYSession {
 
   write(data: string | Buffer): void {
     if (this._disposed || !this._isRunning) return;
-    const str = typeof data === 'string' ? data : data.toString();
-    this.pty.write(str);
+    // Pass Buffers through untouched — no .toString() utf8 mangling, so binary
+    // input (e.g. mouse reports) reaches the pty byte-exact. node-pty accepts
+    // Buffer at runtime and the widened IPty interface permits it.
+    this.pty.write(data);
   }
 
   resize(cols: number, rows: number): void {
