@@ -14,6 +14,9 @@ export {
 export type {
   IMessageBus,
   IPCPTYTransportMetadata,
+  IPCPTYTransportOptions,
+  SpawnRequestPayload,
+  SpawnResponsePayload,
 } from './ipc-transport.js';
 
 // Bridge
@@ -26,8 +29,31 @@ export type {
   BusMessage,
   IIPCServer,
   PTYIPCBridgeEvents,
+  PTYIPCBridgeOptions,
   IPTYIPCBridge,
 } from './ipc-bridge.js';
+
+// Session host (owner side)
+export {
+  IPCSessionHost,
+  createIPCSessionHost,
+} from './session-host.js';
+export type {
+  IPCSessionHostOptions,
+  IPCSessionHostEvents,
+  SpawnConfig,
+  SpawnHandler,
+} from './session-host.js';
+
+// UDS client (owner-side socket plumbing)
+export {
+  UDSClient,
+  createUDSClient,
+} from './uds-client.js';
+export type {
+  UDSClientOptions,
+  UDSClientEvents,
+} from './uds-client.js';
 
 // UDS Server
 export {

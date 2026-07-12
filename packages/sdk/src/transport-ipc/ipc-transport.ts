@@ -10,6 +10,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { randomUUID } from 'crypto';
 import type {
   IPTYTransport,
   TransportType,
@@ -69,6 +70,43 @@ export interface IPCPTYTransportMetadata {
   pid?: number;
 }
 
+export interface IPCPTYTransportOptions {
+  /**
+   * Rewrite output for line-mode CLI echo (strip focus-tracking sequences,
+   * normalize newlines). Leave enabled for `avo`-style CLI sessions; disable
+   * for byte-exact mirroring of full-screen TUIs, where any rewrite corrupts
+   * cursor-addressed screens. Default: true (existing behavior).
+   */
+  normalizeOutput?: boolean;
+}
+
+/** Hub → owner: ask the session host to spawn a session (`spawn:request`). */
+export interface SpawnRequestPayload {
+  requestId: string;
+  command: string;
+  args?: string[];
+  cwd?: string;
+  /** Explicit env grants passed to the owner's spawn handler — never a full parent env. */
+  env?: Record<string, string>;
+  cols?: number;
+  rows?: number;
+  name?: string;
+}
+
+/** Owner → hub acknowledgment (`spawn:response`). The session itself arrives via `session:announce`. */
+export interface SpawnResponsePayload {
+  requestId: string;
+  ok: boolean;
+  sessionId?: string;
+  error?: string;
+}
+
+interface PendingSpawn {
+  resolve: (result: { sessionId: string }) => void;
+  reject: (err: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
+}
+
 // ===============================================================================
 // IPC PTY TRANSPORT IMPLEMENTATION
 // ===============================================================================
@@ -81,12 +119,20 @@ export class IPCPTYTransport extends EventEmitter implements IPTYTransport {
   private _messageBus: IMessageBus;
   private _isConnected: boolean = true;
   private _metadata?: IPCPTYTransportMetadata;
+  private _normalizeOutput: boolean;
+  private _pendingSpawns: Map<string, PendingSpawn> = new Map();
 
-  constructor(connectionId: string, messageBus: IMessageBus, metadata?: IPCPTYTransportMetadata) {
+  constructor(
+    connectionId: string,
+    messageBus: IMessageBus,
+    metadata?: IPCPTYTransportMetadata,
+    options?: IPCPTYTransportOptions
+  ) {
     super();
     this._connectionId = connectionId;
     this._messageBus = messageBus;
     this._metadata = metadata;
+    this._normalizeOutput = options?.normalizeOutput ?? true;
   }
 
   // ---------------------------------------------------------------------------
@@ -126,6 +172,7 @@ export class IPCPTYTransport extends EventEmitter implements IPTYTransport {
       return;
     }
     this._isConnected = false;
+    this.rejectPendingSpawns(`transport disconnected: ${reason ?? 'disconnect called'}`);
     this.emit('disconnected', reason ?? 'disconnect called');
   }
 
@@ -158,6 +205,9 @@ export class IPCPTYTransport extends EventEmitter implements IPTYTransport {
       case 'focus':
         this.handleFocus(payload as FocusPayload);
         break;
+      case 'spawn:response':
+        this.handleSpawnResponse(payload as SpawnResponsePayload);
+        break;
       default:
         console.log(`${LOG_PREFIX} Unknown message type: ${type}`);
     }
@@ -180,10 +230,23 @@ export class IPCPTYTransport extends EventEmitter implements IPTYTransport {
 
   private handleOutput(payload: OutputPayload): void {
     try {
-      const data = this.normalizeOutput(Buffer.from(payload.data, 'base64'));
+      const raw = Buffer.from(payload.data, 'base64');
+      const data = this._normalizeOutput ? this.normalizeOutput(raw) : raw;
       this.emit('output', payload.sessionId, data);
     } catch (error) {
       console.error(`${LOG_PREFIX} Error processing output:`, error);
+    }
+  }
+
+  private handleSpawnResponse(payload: SpawnResponsePayload): void {
+    const pending = this._pendingSpawns.get(payload.requestId);
+    if (!pending) return;
+    this._pendingSpawns.delete(payload.requestId);
+    clearTimeout(pending.timer);
+    if (payload.ok && payload.sessionId) {
+      pending.resolve({ sessionId: payload.sessionId });
+    } else {
+      pending.reject(new Error(payload.error ?? 'spawn rejected by session host'));
     }
   }
 
@@ -250,6 +313,38 @@ export class IPCPTYTransport extends EventEmitter implements IPTYTransport {
     });
   }
 
+  /**
+   * Ask the connected session host to spawn a session. Resolves with the
+   * remote (un-namespaced) session id once the host acknowledges; the session
+   * itself arrives through the usual `session:announce` flow, which the host
+   * sends before the acknowledgment.
+   */
+  requestSpawn(config: Omit<SpawnRequestPayload, 'requestId'>, timeoutMs = 15_000): Promise<{ sessionId: string }> {
+    if (!this.isReady) {
+      return Promise.reject(new Error('transport not connected'));
+    }
+    const requestId = randomUUID();
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this._pendingSpawns.delete(requestId);
+        reject(new Error(`spawn request timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+      this._pendingSpawns.set(requestId, { resolve, reject, timer });
+      this._messageBus.publish(this._connectionId, PTY_NAMESPACE, 'spawn:request', {
+        requestId,
+        ...config,
+      });
+    });
+  }
+
+  private rejectPendingSpawns(reason: string): void {
+    for (const [, pending] of this._pendingSpawns) {
+      clearTimeout(pending.timer);
+      pending.reject(new Error(reason));
+    }
+    this._pendingSpawns.clear();
+  }
+
   // ---------------------------------------------------------------------------
   // Outgoing Operations (Owner -> Viewer) - stubs for interface compliance
   // ---------------------------------------------------------------------------
@@ -278,6 +373,7 @@ export class IPCPTYTransport extends EventEmitter implements IPTYTransport {
   handleDisconnected(reason: string): void {
     if (!this._isConnected) return;
     this._isConnected = false;
+    this.rejectPendingSpawns(`transport disconnected: ${reason}`);
     this.emit('disconnected', reason);
   }
 }
@@ -289,7 +385,8 @@ export class IPCPTYTransport extends EventEmitter implements IPTYTransport {
 export function createIPCPTYTransport(
   connectionId: string,
   messageBus: IMessageBus,
-  metadata?: IPCPTYTransportMetadata
+  metadata?: IPCPTYTransportMetadata,
+  options?: IPCPTYTransportOptions
 ): IPCPTYTransport {
-  return new IPCPTYTransport(connectionId, messageBus, metadata);
+  return new IPCPTYTransport(connectionId, messageBus, metadata, options);
 }
