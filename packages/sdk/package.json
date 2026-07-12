@@ -1,6 +1,6 @@
 {
   "name": "@vibecook/avocado-sdk",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Terminal (PTY) session sync library — one session model, pluggable transports (local, IPC, mesh via Tailscale)",
   "license": "MIT",
   "author": "James Yong",
