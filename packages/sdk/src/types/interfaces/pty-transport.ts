@@ -100,9 +100,9 @@ export interface IPTYTransport extends EventEmitter {
   once(event: 'sessionAnnounced', listener: (info: RemoteSessionAnnounce) => void): this;
   off(event: 'sessionAnnounced', listener: (info: RemoteSessionAnnounce) => void): this;
 
-  on(event: 'sessionEnded', listener: (sessionId: string, exitCode: number) => void): this;
-  once(event: 'sessionEnded', listener: (sessionId: string, exitCode: number) => void): this;
-  off(event: 'sessionEnded', listener: (sessionId: string, exitCode: number) => void): this;
+  on(event: 'sessionEnded', listener: (sessionId: string, exitCode: number, signal?: string) => void): this;
+  once(event: 'sessionEnded', listener: (sessionId: string, exitCode: number, signal?: string) => void): this;
+  off(event: 'sessionEnded', listener: (sessionId: string, exitCode: number, signal?: string) => void): this;
 
   on(event: 'output', listener: (sessionId: string, data: Buffer) => void): this;
   once(event: 'output', listener: (sessionId: string, data: Buffer) => void): this;
@@ -158,7 +158,7 @@ export interface IPTYTransport extends EventEmitter {
 
   // Generic emit overloads
   emit(event: 'sessionAnnounced', info: RemoteSessionAnnounce): boolean;
-  emit(event: 'sessionEnded', sessionId: string, exitCode: number): boolean;
+  emit(event: 'sessionEnded', sessionId: string, exitCode: number, signal?: string): boolean;
   emit(event: 'output', sessionId: string, data: Buffer): boolean;
   emit(event: 'resized', sessionId: string, cols: number, rows: number): boolean;
   emit(event: 'focusChanged', sessionId: string, focused: boolean): boolean;

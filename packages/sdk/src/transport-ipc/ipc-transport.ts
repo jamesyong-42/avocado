@@ -52,6 +52,8 @@ interface OutputPayload {
 interface SessionEndPayload {
   sessionId: string;
   exitCode?: number;
+  /** Terminating signal, when the owner's process died by signal. */
+  signal?: string;
 }
 
 interface ResizePayload {
@@ -264,7 +266,7 @@ export class IPCPTYTransport extends EventEmitter implements IPTYTransport {
   }
 
   private handleSessionEnd(payload: SessionEndPayload): void {
-    this.emit('sessionEnded', payload.sessionId, payload.exitCode ?? 0);
+    this.emit('sessionEnded', payload.sessionId, payload.exitCode ?? 0, payload.signal);
   }
 
   private handleResize(payload: ResizePayload): void {

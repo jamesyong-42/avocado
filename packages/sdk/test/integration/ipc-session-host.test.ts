@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { BasePTYSession } from '#types';
-import { createPTYSessionManager } from '#core';
+import { createPTYSessionManager, createProxyPTYSession, type PTYSessionManager } from '#core';
 import {
   createIPCSessionHost,
   createPTYIPCBridge,
@@ -49,8 +49,8 @@ class FakeSession extends BasePTYSession {
     this.pushOutput(data);
   }
 
-  exitWith(code: number): void {
-    this.setExited(code);
+  exitWith(code: number, signal?: string): void {
+    this.setExited(code, signal);
   }
 
   override write(data: string | Buffer): void {
@@ -85,6 +85,7 @@ function waitFor<T>(check: () => T | undefined, label: string, timeoutMs = 5000)
 interface Harness {
   server: UDSServer;
   host: IPCSessionHost;
+  manager: PTYSessionManager;
   transport: () => IPCPTYTransport | undefined;
   outputs: Array<{ sessionId: string; data: Buffer }>;
   announced: string[];
@@ -96,6 +97,7 @@ async function startHarness(options: { normalizeOutput: boolean; spawnHandler?: 
   const socketPath = join(mkdtempSync(join(tmpdir(), 'avocado-host-')), 'test.sock');
 
   const manager = createPTYSessionManager();
+  manager.setProxySessionFactory(createProxyPTYSession);
   const server = createUDSServer();
   const bridge = createPTYIPCBridge(manager, { transport: { normalizeOutput: options.normalizeOutput } });
   server.start({ socketPath });
@@ -129,7 +131,7 @@ async function startHarness(options: { normalizeOutput: boolean; spawnHandler?: 
     server.dispose();
   });
 
-  return { server, host, transport: () => transport, outputs, announced };
+  return { server, host, manager, transport: () => transport, outputs, announced };
 }
 
 afterEach(() => {
@@ -201,6 +203,22 @@ describe('IPCSessionHost over UDS', () => {
     const h = await startHarness({ normalizeOutput: false });
     await waitFor(() => h.transport(), 'transport');
     await expect(h.transport()!.requestSpawn({ command: '/bin/anything' })).rejects.toThrow(/spawn not supported/);
+  });
+
+  it('manager-level exit fires for proxy sessions, carrying code and signal', async () => {
+    const h = await startHarness({ normalizeOutput: false });
+    const session = new FakeSession();
+    h.host.addSession(session);
+    await waitFor(() => (h.announced.includes(session.id) ? true : undefined), 'announce');
+
+    const exits: Array<{ sessionId: string; exitCode: number; signal?: string }> = [];
+    h.manager.on('exit', (e: { sessionId: string; exitCode: number; signal?: string }) => exits.push(e));
+
+    session.exitWith(129, 'SIGTERM');
+    const exit = await waitFor(() => exits[0], 'manager exit event');
+    expect(exit.exitCode).toBe(129);
+    expect(exit.signal).toBe('SIGTERM');
+    expect(exit.sessionId).toContain(session.id); // namespaced ipc|<transport>|<id>
   });
 
   it('session exit propagates as session:end and unhosts the session', async () => {

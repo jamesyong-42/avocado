@@ -58,7 +58,8 @@ export class ProxyPTYSession extends BasePTYSession implements IPTYSession {
   ) => void;
   private readonly onSessionEnded: (
     sessionId: string,
-    exitCode: number
+    exitCode: number,
+    signal?: string
   ) => void;
   private readonly onFocusChanged: (
     sessionId: string,
@@ -89,9 +90,9 @@ export class ProxyPTYSession extends BasePTYSession implements IPTYSession {
       if (sessionId !== this.remoteSessionId) return;
       this.setSize(cols, rows);
     };
-    this.onSessionEnded = (sessionId, exitCode): void => {
+    this.onSessionEnded = (sessionId, exitCode, signal): void => {
       if (sessionId !== this.remoteSessionId) return;
-      this.setExited(exitCode);
+      this.setExited(exitCode, signal);
     };
     this.onFocusChanged = (sessionId, focused): void => {
       if (sessionId !== this.remoteSessionId) return;

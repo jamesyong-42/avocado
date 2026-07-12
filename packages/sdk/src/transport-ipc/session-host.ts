@@ -116,8 +116,8 @@ export class IPCSessionHost extends EventEmitter {
     const onOutput = (data: Buffer): void => {
       this.send('output', { sessionId: session.id, data: data.toString('base64') });
     };
-    const onExit = (code: number): void => {
-      this.send('session:end', { sessionId: session.id, exitCode: code });
+    const onExit = (code: number, signal?: string): void => {
+      this.send('session:end', { sessionId: session.id, exitCode: code, signal });
       this.removeSession(session.id);
     };
     const onResized = (cols: number, rows: number): void => {

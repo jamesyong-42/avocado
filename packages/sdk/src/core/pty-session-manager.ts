@@ -269,8 +269,8 @@ export class PTYSessionManager extends EventEmitter {
     });
 
     // Handle session ended
-    transport.on('sessionEnded', (sessionId: string, exitCode: number) => {
-      this.handleSessionEnded(transport, sessionId, exitCode);
+    transport.on('sessionEnded', (sessionId: string, exitCode: number, signal?: string) => {
+      this.handleSessionEnded(transport, sessionId, exitCode, signal);
     });
 
     // Handle disconnection
@@ -365,7 +365,12 @@ export class PTYSessionManager extends EventEmitter {
     this.registerSession(session);
   }
 
-  private handleSessionEnded(transport: IPTYTransport, remoteSessionId: string, _exitCode: number): void {
+  private handleSessionEnded(
+    transport: IPTYTransport,
+    remoteSessionId: string,
+    exitCode: number,
+    signal?: string
+  ): void {
     const source: SessionSource = transport.transportType;
     const namespacedId = createNamespacedId(source, transport.transportId, remoteSessionId);
 
@@ -373,6 +378,13 @@ export class PTYSessionManager extends EventEmitter {
     if (!session) return;
 
     this.transportSessions.get(transport.transportId)?.delete(namespacedId);
+
+    // Emit the manager-level exit BEFORE disposing: this listener runs ahead
+    // of the proxy session's own sessionEnded handler (it was attached first,
+    // at registerTransport), so the per-session 'exit' forwarder wired in
+    // registerSession is cleared by dispose() before it could ever fire.
+    // Without this explicit emit, proxy sessions never surface an 'exit'.
+    this.emit('exit', { sessionId: namespacedId, exitCode, signal });
 
     session.dispose();
     this.sessions.delete(namespacedId);
