@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.2.2](https://github.com/jamesyong-42/avocado/compare/avocado-v0.2.1...avocado-v0.2.2) (2026-07-12)
+
+
+### Features
+
+* **core:** promote ProxyPTYSession into the SDK ([e89f3bc](https://github.com/jamesyong-42/avocado/commit/e89f3bc62dd51b859bb32f407601db651dac15b8))
+* **node-pty:** byte-exact IO — IPty accepts string | Buffer ([f293c61](https://github.com/jamesyong-42/avocado/commit/f293c61e2d07c99d8ecbafb876dec66c491bdc6d))
+* **react:** maximize restty Ghostty parity ([947c622](https://github.com/jamesyong-42/avocado/commit/947c622944b0f4320afb6fab68c8d70c4a572a28))
+* **react:** pluggable TerminalView engines with restty hardening ([2cfa3e5](https://github.com/jamesyong-42/avocado/commit/2cfa3e52544d17279ca8d970f966fc21d2095bc5))
+* **sdk:** multi-session IPCSessionHost, hub-initiated spawn requests, byte-exact output option ([d981170](https://github.com/jamesyong-42/avocado/commit/d981170077e94503a628c2b62414f737df20fdfa))
+* **transport-truffle:** migrate to truffle 0.6 Peer-first API ([688fe69](https://github.com/jamesyong-42/avocado/commit/688fe6971315df1ee4d40695afa18ad7594f24db))
+
+
+### Bug Fixes
+
+* **core:** surface proxy-session exits on the manager; carry exit signal over session:end ([4969e6f](https://github.com/jamesyong-42/avocado/commit/4969e6ff78574b15fec7caa4e4bd330d979f95b4))
+* **node-pty:** advertise truecolor so TUIs stop using pastel palette ([2329fae](https://github.com/jamesyong-42/avocado/commit/2329fae33db526e97f0cf2a639859cd8933176d7))
+* **playground:** rebuild SDK dist so PTY truecolor env actually loads ([78cc5c7](https://github.com/jamesyong-42/avocado/commit/78cc5c7d0183cdc199e1fd5dd507411e369012e5))
+* **react:** restty Nerd Font chain + Ghostty-parity defaults ([d7ea368](https://github.com/jamesyong-42/avocado/commit/d7ea3688e4ad4895a8e969e7f1ba6418d50b63e7))
+* **react:** use native alpha blending for Ghostty color parity ([1556325](https://github.com/jamesyong-42/avocado/commit/15563259109652c7bd0bc5d35418a215f10c0ab8))
+
 ## [Unreleased]
 
 ### ⚠ BREAKING CHANGES
