@@ -17,6 +17,8 @@
     "pty",
     "terminal",
     "xterm",
+    "restty",
+    "ghostty",
     "tailscale",
     "mesh",
     "session-sync",
@@ -95,7 +97,8 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "assets"
   ],
   "scripts": {
     "build": "tsc",
@@ -105,6 +108,7 @@
     "test:watch": "vitest",
     "test:unit": "vitest run test/unit",
     "test:integration": "vitest run test/integration",
+    "test:e2e": "vitest run test/e2e",
     "test:live": "vitest run test/integration/mesh-live.test.ts"
   },
   "dependencies": {
@@ -114,13 +118,9 @@
     "@vibecook/truffle": "^0.6.0",
     "node-pty": ">=1.0.0",
     "react": ">=18.0.0",
+    "restty": ">=0.2.0",
     "xterm": ">=5.0.0",
-    "@xterm/addon-fit": ">=0.10.0",
-    "@xterm/addon-webgl": ">=0.18.0",
-    "@react-three/fiber": ">=9.0.0",
-    "@react-three/postprocessing": ">=3.0.0",
-    "three": ">=0.170.0",
-    "postprocessing": ">=6.37.0"
+    "@xterm/addon-fit": ">=0.10.0"
   },
   "peerDependenciesMeta": {
     "@vibecook/truffle": {
@@ -132,43 +132,26 @@
     "react": {
       "optional": true
     },
+    "restty": {
+      "optional": true
+    },
     "xterm": {
       "optional": true
     },
     "@xterm/addon-fit": {
-      "optional": true
-    },
-    "@xterm/addon-webgl": {
-      "optional": true
-    },
-    "@react-three/fiber": {
-      "optional": true
-    },
-    "@react-three/postprocessing": {
-      "optional": true
-    },
-    "three": {
-      "optional": true
-    },
-    "postprocessing": {
       "optional": true
     }
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
-    "@types/three": "^0.170.0",
     "@vibecook/truffle": "^0.6.0",
     "node-pty": "^1.0.0",
     "react": "^19.0.0",
+    "restty": "^0.2.0",
     "typescript": "^5.5.0",
     "vitest": "^3.2.4",
     "xterm": "^5.0.0",
-    "@xterm/addon-fit": "^0.10.0",
-    "@xterm/addon-webgl": "^0.18.0",
-    "@react-three/fiber": "^9.0.0",
-    "@react-three/postprocessing": "^3.0.0",
-    "three": "^0.170.0",
-    "postprocessing": "^6.37.0"
+    "@xterm/addon-fit": "^0.10.0"
   }
 }

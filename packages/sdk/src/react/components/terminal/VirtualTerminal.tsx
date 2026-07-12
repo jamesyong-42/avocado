@@ -1,22 +1,18 @@
 /**
- * VirtualTerminal Component
+ * VirtualTerminal — interactive terminal bound to a PTY session.
  *
- * Full interactive terminal using xterm.js in the renderer process.
- * Connects to a PTY session via the AvocadoProvider backend.
+ * Engine-agnostic: xterm (default) or restty (libghostty-vt). Session I/O
+ * goes through AvocadoProvider / TerminalBackend.
  */
 
-import { useCallback, useRef, useState, useEffect, type JSX } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import { useCallback, type CSSProperties, type JSX } from 'react';
+import { useTerminalCore } from './useTerminalCore.js';
+import type { TerminalEngineId } from './views/types.js';
+// Side-effect: hide xterm helper textarea / style viewport. Also loaded
+// lazily inside XtermTerminalView; importing here covers HMR and default path.
 import 'xterm/css/xterm.css';
-import { useTerminalCore } from './useTerminalCore';
-import { getPreset, mergeWithPreset } from './renderers/presets';
-import { useTextureSync, findXtermCanvas } from './renderers/webgl/useTextureSync';
-import { TerminalPlane } from './renderers/webgl/TerminalPlane';
-import { CRTEffect } from './renderers/webgl/CRTEffect';
-import type { RendererType, CRTPreset, RendererOptions, VirtualTerminalRendererProps } from './renderers/types';
 
-export interface VirtualTerminalProps extends VirtualTerminalRendererProps {
+export interface VirtualTerminalProps {
   sessionId: string;
   terminalId: string;
   cols?: number;
@@ -32,56 +28,30 @@ export interface VirtualTerminalProps extends VirtualTerminalRendererProps {
   fontFamily?: string;
   convertEol?: boolean;
   suppressTerminalResponses?: boolean;
+  /**
+   * Rendering engine.
+   * - `xterm` (default): classic xterm.js
+   * - `restty`: Ghostty VT via restty (optional peer dep)
+   */
+  engine?: TerminalEngineId;
+  /** Restty only: Ghostty builtin theme name (default Ghostty Default Style Dark). */
+  ghosttyThemeName?: string;
+  resttyRenderer?: 'auto' | 'webgpu' | 'webgl2';
+  resttyLigatures?: boolean;
+  resttyFontHinting?: boolean;
+  resttyAlphaBlending?: 'native' | 'linear' | 'linear-corrected';
+  resttyNerdIconScale?: number;
 }
 
-function WebGLScene({
-  xtermCanvas,
-  crtOptions,
-  bloomOptions,
-  containerSize,
-}: {
-  xtermCanvas: HTMLCanvasElement | null;
-  crtOptions: RendererOptions['crt'];
-  bloomOptions: RendererOptions['bloom'];
-  containerSize: { width: number; height: number };
-}) {
-  const { texture, markDirty } = useTextureSync({ canvas: xtermCanvas, enabled: true });
-
-  useEffect(() => {
-    const interval = setInterval(() => markDirty(), 16);
-    return () => clearInterval(interval);
-  }, [markDirty]);
-
-  const hasCRTEffects = Boolean(
-    crtOptions && (crtOptions.scanlineIntensity || crtOptions.curvature || crtOptions.chromaticAberration || crtOptions.vignetteIntensity)
-  );
-  const hasBloom = Boolean(bloomOptions && bloomOptions.intensity && bloomOptions.intensity > 0);
-
-  const renderEffects = () => {
-    if (hasCRTEffects && hasBloom && crtOptions && bloomOptions) {
-      return (
-        <EffectComposer>
-          <CRTEffect {...crtOptions} width={containerSize.width} height={containerSize.height} />
-          <Bloom intensity={bloomOptions.intensity ?? 0.5} luminanceThreshold={bloomOptions.luminanceThreshold ?? 0.75} luminanceSmoothing={bloomOptions.luminanceSmoothing ?? 0.9} />
-        </EffectComposer>
-      );
-    }
-    if (hasCRTEffects && crtOptions) {
-      return (<EffectComposer><CRTEffect {...crtOptions} width={containerSize.width} height={containerSize.height} /></EffectComposer>);
-    }
-    if (hasBloom && bloomOptions) {
-      return (<EffectComposer><Bloom intensity={bloomOptions.intensity ?? 0.5} luminanceThreshold={bloomOptions.luminanceThreshold ?? 0.75} luminanceSmoothing={bloomOptions.luminanceSmoothing ?? 0.9} /></EffectComposer>);
-    }
-    return null;
-  };
-
-  return (
-    <>
-      <TerminalPlane texture={texture} canvas={xtermCanvas} />
-      {renderEffects()}
-    </>
-  );
-}
+const HOST_FILL: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  width: '100%',
+  height: '100%',
+  minHeight: 0,
+  minWidth: 0,
+  overflow: 'hidden',
+};
 
 export function VirtualTerminal({
   sessionId,
@@ -99,15 +69,15 @@ export function VirtualTerminal({
   fontFamily = 'Menlo, Monaco, "Courier New", monospace',
   convertEol = false,
   suppressTerminalResponses = false,
-  renderer = 'default',
-  crtPreset = 'classic',
-  rendererOptions,
+  engine = 'xterm',
+  ghosttyThemeName,
+  resttyRenderer,
+  resttyLigatures,
+  resttyFontHinting,
+  resttyAlphaBlending,
+  resttyNerdIconScale,
 }: VirtualTerminalProps): JSX.Element {
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const [xtermCanvas, setXtermCanvas] = useState<HTMLCanvasElement | null>(null);
-  const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
-
-  const { state, actions } = useTerminalCore({
+  const { state, actions, error } = useTerminalCore({
     sessionId,
     terminalId,
     cols,
@@ -122,69 +92,91 @@ export function VirtualTerminal({
     fontFamily,
     convertEol,
     suppressTerminalResponses,
-    useWebGLRenderer: true,
+    engine,
+    ghosttyThemeName,
+    resttyRenderer,
+    resttyLigatures,
+    resttyFontHinting,
+    resttyAlphaBlending,
+    resttyNerdIconScale,
   });
 
-  const { containerRef, fixedDimensions } = state;
-
-  const preset = getPreset(crtPreset);
-  const { crt: crtOptions, bloom: bloomOptions } = mergeWithPreset(preset, rendererOptions);
-
-  useEffect(() => {
-    if (renderer !== 'webgl') { setXtermCanvas(null); return; }
-    const findCanvas = () => {
-      const canvas = findXtermCanvas(containerRef.current);
-      if (canvas) setXtermCanvas(canvas);
-    };
-    findCanvas();
-    const timer1 = setTimeout(findCanvas, 100);
-    const timer2 = setTimeout(findCanvas, 300);
-    const timer3 = setTimeout(findCanvas, 500);
-    const observer = new MutationObserver(findCanvas);
-    if (containerRef.current) {
-      observer.observe(containerRef.current, { childList: true, subtree: true });
-    }
-    return () => { clearTimeout(timer1); clearTimeout(timer2); clearTimeout(timer3); observer.disconnect(); };
-  }, [renderer, containerRef, state.isReady]);
-
-  useEffect(() => {
-    if (renderer !== 'webgl' || !wrapperRef.current) return;
-    const updateSize = () => {
-      if (wrapperRef.current) {
-        const rect = wrapperRef.current.getBoundingClientRect();
-        setContainerSize({ width: rect.width, height: rect.height });
-      }
-    };
-    updateSize();
-    const resizeObserver = new ResizeObserver(updateSize);
-    resizeObserver.observe(wrapperRef.current);
-    return () => resizeObserver.disconnect();
-  }, [renderer]);
+  const { containerRef, fixedDimensions, isReady } = state;
 
   const handleClick = useCallback(() => {
     actions.focus();
-    if (onFocus) onFocus();
+    onFocus?.();
   }, [actions, onFocus]);
 
-  const containerStyle: React.CSSProperties = autoResize
-    ? { width: '100%', height: '100%', minHeight: '100px', backgroundColor: '#1a1b26', borderRadius: '4px', overflow: 'hidden', position: 'relative' }
-    : { width: fixedDimensions?.width ?? 'auto', height: fixedDimensions?.height ?? 'auto', minWidth: fixedDimensions?.width ?? 'auto', minHeight: fixedDimensions?.height ?? 'auto', flexShrink: 0, flexGrow: 0, backgroundColor: '#1a1b26', borderRadius: '4px', overflow: 'hidden', position: 'relative' };
+  // Match Ghostty Default Style Dark host when restty is selected.
+  const hostBg = engine === 'restty' ? '#282c34' : '#1a1b26';
 
-  const xtermContainerStyle: React.CSSProperties = renderer === 'webgl'
-    ? { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, pointerEvents: 'all', zIndex: 1 }
-    : { width: '100%', height: '100%' };
+  const containerStyle: CSSProperties = autoResize
+    ? {
+        width: '100%',
+        height: '100%',
+        minHeight: '100px',
+        backgroundColor: hostBg,
+        borderRadius: '4px',
+        overflow: 'hidden',
+        position: 'relative',
+      }
+    : {
+        width: fixedDimensions?.width ?? 'auto',
+        height: fixedDimensions?.height ?? 'auto',
+        minWidth: fixedDimensions?.width ?? 'auto',
+        minHeight: fixedDimensions?.height ?? 'auto',
+        flexShrink: 0,
+        flexGrow: 0,
+        backgroundColor: hostBg,
+        borderRadius: '4px',
+        overflow: 'hidden',
+        position: 'relative',
+      };
 
   return (
-    <div ref={wrapperRef} className={`virtual-terminal ${className}`} style={containerStyle} data-terminal-id={terminalId} data-session-id={sessionId} data-is-active={isActive} data-auto-resize={autoResize} data-renderer={renderer}>
-      <div ref={containerRef} onClick={handleClick} onFocusCapture={onFocus} onBlurCapture={onBlur} style={xtermContainerStyle} />
-      {renderer === 'webgl' && (
-        <Canvas style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 2 }} orthographic camera={{ zoom: 1, position: [0, 0, 100], near: 0.1, far: 1000 }} gl={{ antialias: false, alpha: false, powerPreference: 'high-performance' }}>
-          <WebGLScene xtermCanvas={xtermCanvas} crtOptions={crtOptions} bloomOptions={bloomOptions} containerSize={containerSize} />
-        </Canvas>
+    <div
+      className={`virtual-terminal ${className}`}
+      style={containerStyle}
+      data-terminal-id={terminalId}
+      data-session-id={sessionId}
+      data-is-active={isActive}
+      data-auto-resize={autoResize}
+      data-engine={engine}
+      data-ready={isReady}
+    >
+      {/* Engine host: absolute fill so xterm/restty always get a real size. */}
+      <div
+        ref={containerRef}
+        className="virtual-terminal-host"
+        onClick={handleClick}
+        onFocusCapture={onFocus}
+        onBlurCapture={onBlur}
+        style={HOST_FILL}
+      />
+      {error && (
+        <div
+          role="alert"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 12,
+            background: 'rgba(26,27,38,0.95)',
+            color: '#f7768e',
+            fontSize: 12,
+            textAlign: 'center',
+            zIndex: 2,
+          }}
+        >
+          {error.message}
+        </div>
       )}
     </div>
   );
 }
 
 export default VirtualTerminal;
-export type { RendererType, CRTPreset, RendererOptions };
+export type { TerminalEngineId };

@@ -15,7 +15,7 @@
  *        - peers panel (mesh discovery)
  *        - sessions panel with create/destroy/resize/filter
  *        - terminals panel with type/mode selection and grid toggle
- *        - terminal grid (up to 3x3) with renderer/CRT controls
+ *        - terminal grid (up to 3x3) with engine toggle (xterm | restty)
  */
 
 import { useEffect, useRef, useState, type JSX } from 'react';
@@ -26,7 +26,7 @@ import {
   useTerminals,
   useTerminalGrid,
 } from '@vibecook/avocado-sdk/react';
-import type { RendererType, CRTPreset } from '@vibecook/avocado-sdk/react';
+import type { TerminalEngineId } from '@vibecook/avocado-sdk/react';
 
 import { createElectronBackend } from './electron-backend';
 import { AuthGate } from './components/AuthGate';
@@ -197,8 +197,7 @@ function PlaygroundBody(): JSX.Element {
     maxTerminals,
   } = useTerminalGrid();
 
-  const [renderer, setRenderer] = useState<RendererType>('default');
-  const [crtPreset, setCrtPreset] = useState<CRTPreset>('classic');
+  const [engine, setEngine] = useState<TerminalEngineId>('xterm');
 
   const selectedTerminals = getSelectedTerminals(terminals);
 
@@ -262,10 +261,8 @@ function PlaygroundBody(): JSX.Element {
               onTerminalFocus={handleTerminalFocus}
               onTerminalBlur={handleTerminalBlur}
               onClearAll={clearSelection}
-              renderer={renderer}
-              crtPreset={crtPreset}
-              onRendererChange={setRenderer}
-              onCrtPresetChange={setCrtPreset}
+              engine={engine}
+              onEngineChange={setEngine}
             />
           </div>
         )}

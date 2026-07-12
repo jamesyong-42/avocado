@@ -22,10 +22,16 @@ export interface IPty {
   readonly pid: number;
   readonly cols: number;
   readonly rows: number;
-  write(data: string): void;
+  // string | Buffer so a byte-exact spawn (node-pty with encoding:null) can be
+  // injected: onData then delivers raw Buffers, letting malformed UTF-8 and
+  // binary sequences (mouse reports, etc.) survive recording unmangled. A
+  // default string-mode node-pty still satisfies this: string is assignable to
+  // string | Buffer, and the double-contravariant onData callback direction
+  // keeps its string-only signature assignable to the widened one.
+  write(data: string | Buffer): void;
   resize(cols: number, rows: number): void;
   kill(signal?: string): void;
-  onData: (callback: (data: string) => void) => { dispose: () => void };
+  onData: (callback: (data: string | Buffer) => void) => { dispose: () => void };
   onExit: (callback: (exit: { exitCode: number; signal?: number }) => void) => { dispose: () => void };
 }
 
@@ -46,6 +52,48 @@ export interface PTYSpawnConfig {
  * Function type for spawning PTY processes
  */
 export type PTYSpawnFunction = (config: PTYSpawnConfig) => IPty;
+
+/**
+ * Build env for an interactive PTY so apps (Claude Code, rich TUIs) emit
+ * 24-bit truecolor instead of remapping through the 16/256 palette.
+ *
+ * Ghostty sets COLORTERM=truecolor; without it many tools fall back to
+ * indexed colors and look washed-out under a pastel theme palette.
+ *
+ * Strips parent NO_COLOR / dumb TERM from agent/CI shells.
+ */
+const COLOR_SUPPRESS_KEYS = new Set(['NO_COLOR', 'NODE_DISABLE_COLORS']);
+
+export function buildInteractivePtyEnv(
+  base: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env,
+  overrides?: Record<string, string>
+): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const [key, value] of Object.entries(base)) {
+    if (value === undefined) continue;
+    if (COLOR_SUPPRESS_KEYS.has(key)) continue;
+    env[key] = value;
+  }
+  if (overrides) {
+    for (const [key, value] of Object.entries(overrides)) {
+      if (COLOR_SUPPRESS_KEYS.has(key)) continue;
+      env[key] = value;
+    }
+  }
+  // Advertise full color like a modern terminal (Ghostty / iTerm / Kitty).
+  // Applied *after* overrides so callers cannot accidentally downgrade.
+  env.TERM = 'xterm-256color';
+  env.COLORTERM = 'truecolor';
+  // chalk: 1=basic, 2=256, 3=truecolor
+  env.FORCE_COLOR = '3';
+  // macOS / BSD ls colors (override inherited CLICOLOR=0 from agent shells)
+  env.CLICOLOR = '1';
+  env.CLICOLOR_FORCE = '1';
+  for (const key of COLOR_SUPPRESS_KEYS) {
+    delete env[key];
+  }
+  return env;
+}
 
 // ===============================================================================
 // LOCAL PTY SESSION
@@ -96,15 +144,11 @@ export class LocalPTYSession extends BasePTYSession {
       command: config.command,
       args: config.args ?? [],
       cwd: config.cwd ?? process.cwd(),
-      env: {
-        ...process.env,
-        ...config.env,
-        TERM: 'xterm-256color',
-        FORCE_COLOR: '1',
-      } as Record<string, string>,
+      env: buildInteractivePtyEnv(process.env, config.env),
       cols: config.cols ?? DEFAULT_COLS,
       rows: config.rows ?? DEFAULT_ROWS,
-      name: config.name ?? 'xterm-color',
+      // termios/terminfo name — must advertise 256color for apps that check it
+      name: config.name ?? 'xterm-256color',
     });
 
     return new LocalPTYSession(pty, {
@@ -119,7 +163,10 @@ export class LocalPTYSession extends BasePTYSession {
   // ---------------------------------------------------------------------------
 
   private setupListeners(): void {
-    this.dataDisposable = this.pty.onData((data: string) => {
+    this.dataDisposable = this.pty.onData((data: string | Buffer) => {
+      // Buffer.from(buf) copies bytes directly (no utf8 round-trip); a string
+      // is encoded as utf8. Byte-exact Buffer input therefore passes through
+      // unmangled.
       this.pushOutput(Buffer.from(data));
     });
 
@@ -134,8 +181,10 @@ export class LocalPTYSession extends BasePTYSession {
 
   write(data: string | Buffer): void {
     if (this._disposed || !this._isRunning) return;
-    const str = typeof data === 'string' ? data : data.toString();
-    this.pty.write(str);
+    // Pass Buffers through untouched — no .toString() utf8 mangling, so binary
+    // input (e.g. mouse reports) reaches the pty byte-exact. node-pty accepts
+    // Buffer at runtime and the widened IPty interface permits it.
+    this.pty.write(data);
   }
 
   resize(cols: number, rows: number): void {

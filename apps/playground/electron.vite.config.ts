@@ -25,7 +25,7 @@ import react from '@vitejs/plugin-react';
  *
  * - Renderer:
  *   • Pure browser code. `@avocado/react`, `@avocado/types`, react/react-dom,
- *     xterm, and the three.js stack are all bundled by Vite.
+ *     xterm, and optional restty are bundled by Vite.
  *   • The renderer MUST NOT import any Node-only avocado package
  *     (`@avocado/core`, `@avocado/node-pty`, `@avocado/transport-truffle`)
  *     or `@vibecook/truffle`. Those packages live in the main process and

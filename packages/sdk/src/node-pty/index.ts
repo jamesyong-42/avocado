@@ -6,6 +6,7 @@
 
 export {
   LocalPTYSession,
+  buildInteractivePtyEnv,
 } from './local-pty-session.js';
 export type {
   IPty,

@@ -11,11 +11,30 @@
   * Inbound `msg.from` is a `Peer` (or Tailscale id string fallback) — WhoIs-verified, never a self-declared ULID fallback.
   * Playground `PeerInfo` now exposes `peerRef`, `displayName`, and `deviceId: string | null`.
 
+### ⚠ BREAKING CHANGES (react renderers)
+
+* Removed the Three.js / R3F CRT WebGL path (`CRTEffect`, `TerminalPlane`,
+  `useTextureSync`, CRT presets, `renderer` / `crtPreset` props).
+* Optional peers dropped: `three`, `@react-three/*`, `postprocessing`,
+  `@xterm/addon-webgl`.
+* `VirtualTerminal` now takes `engine?: 'xterm' | 'restty'` instead of
+  `renderer` / CRT options.
+
 ### Features
 
 * **transport-truffle:** migrate to truffle 0.6 Peer-first API (RFC 022)
 * **transport-truffle:** create MeshPTYTransports for online peers (not only `wsConnected`); eager identity often leaves WS down after hello
 * **sdk:** add Vitest unit/integration suite (`pnpm test`) covering types, core, IPC wire, truffle transports (mocked), UDS, node-pty, and optional live mesh
+* **react:** pluggable `TerminalView` engines — default **xterm**, optional **restty** (libghostty-vt via `restty` peer)
+* **react:** retire brittle CRT/Three.js WebGL compositor
+* **react:** first-class `AvocadoPtyTransport` for restty (no local echo; keys → avocado, display via `sendInput(..., "pty")`)
+* **react:** terminal view lifecycle events (`connected` / `disconnected` / `exit` / `error`)
+* **react:** single-direction resize ownership — host `resize()` does not re-emit; engine fit/autoResize drives PTY size
+* **react:** ship full JetBrains Mono **Nerd Font Mono** weight set (regular/bold/italic/bold-italic) + Symbols Nerd Font for restty glyph coverage (no CDN; fixes tofu / □× icons)
+* **react:** Ghostty-parity restty defaults — WebGPU-first, `Ghostty Default Style Dark`, font-size 13, height sizing, ligatures, **native** alpha blending (Ghostty macOS), 2px window padding, theme conversion from avocado palette bags
+* **node-pty:** advertise `COLORTERM=truecolor` / `FORCE_COLOR=3` on spawn (strip `NO_COLOR`) so TUIs emit 24-bit color instead of washed 16-color palette remaps
+* **playground:** `predev`/`prebuild` rebuild SDK dist (main process externalizes avocado-sdk and would otherwise keep a stale PTY env)
+* **sdk:** restty path smoke e2e (`pnpm test:e2e`) — type, backspace, resize, lifecycle, engine factory
 
 ## [0.2.1](https://github.com/jamesyong-42/avocado/compare/avocado-v0.2.0...avocado-v0.2.1) (2026-04-13)
 

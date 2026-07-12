@@ -18,6 +18,7 @@ import {
   IPCPTYTransport,
   createIPCPTYTransport,
   type IMessageBus,
+  type IPCPTYTransportOptions,
 } from './ipc-transport.js';
 import type { PTYSessionManager, ITerminalStoreSync } from '#core';
 
@@ -69,6 +70,11 @@ export interface PTYIPCBridgeEvents {
   transportRemoved: (connectionId: string, reason: string) => void;
 }
 
+export interface PTYIPCBridgeOptions {
+  /** Applied to every transport this bridge creates. See IPCPTYTransportOptions. */
+  transport?: IPCPTYTransportOptions;
+}
+
 export interface IPTYIPCBridge extends EventEmitter {
   initialize(ipcServer: IIPCServer): void;
   isInitialized(): boolean;
@@ -102,10 +108,12 @@ export class PTYIPCBridgeImpl extends EventEmitter implements IPTYIPCBridge {
 
   private connectionReadyHandler: ((conn: ConnectionReadyEvent) => void) | null = null;
   private clientDisconnectedHandler: ((data: { connectionId: string; reason: string }) => void) | null = null;
+  private options?: PTYIPCBridgeOptions;
 
-  constructor(sessionManager: PTYSessionManager) {
+  constructor(sessionManager: PTYSessionManager, options?: PTYIPCBridgeOptions) {
     super();
     this.sessionManager = sessionManager;
+    this.options = options;
   }
 
   setTerminalStoreSync(storeSync: ITerminalStoreSync): void {
@@ -213,10 +221,15 @@ export class PTYIPCBridgeImpl extends EventEmitter implements IPTYIPCBridge {
   // ---------------------------------------------------------------------------
 
   private handleConnectionReady(conn: ConnectionReadyEvent, messageBus: IMessageBus): void {
-    const transport = createIPCPTYTransport(conn.id, messageBus, {
-      version: conn.version,
-      pid: conn.pid,
-    });
+    const transport = createIPCPTYTransport(
+      conn.id,
+      messageBus,
+      {
+        version: conn.version,
+        pid: conn.pid,
+      },
+      this.options?.transport
+    );
 
     this.ipcTransports.set(conn.id, transport);
     this.sessionManager.registerTransport(transport);
@@ -265,6 +278,9 @@ export class PTYIPCBridgeImpl extends EventEmitter implements IPTYIPCBridge {
 // FACTORY
 // ===============================================================================
 
-export function createPTYIPCBridge(sessionManager: PTYSessionManager): IPTYIPCBridge {
-  return new PTYIPCBridgeImpl(sessionManager);
+export function createPTYIPCBridge(
+  sessionManager: PTYSessionManager,
+  options?: PTYIPCBridgeOptions
+): IPTYIPCBridge {
+  return new PTYIPCBridgeImpl(sessionManager, options);
 }

@@ -1,41 +1,47 @@
 // Components
-export { VirtualTerminal } from './VirtualTerminal';
-export type { VirtualTerminalProps } from './VirtualTerminal';
+export { VirtualTerminal } from './VirtualTerminal.js';
+export type { VirtualTerminalProps } from './VirtualTerminal.js';
 
-export { HeadlessTerminal } from './HeadlessTerminal';
-export type { HeadlessTerminalProps } from './HeadlessTerminal';
+export { HeadlessTerminal } from './HeadlessTerminal.js';
+export type { HeadlessTerminalProps } from './HeadlessTerminal.js';
 
-export { TerminalCard } from './TerminalCard';
-export type { TerminalCardProps } from './TerminalCard';
+export { TerminalCard } from './TerminalCard.js';
+export type { TerminalCardProps } from './TerminalCard.js';
 
-export { TerminalGrid } from './TerminalGrid';
-export type { TerminalGridProps, GridLayout } from './TerminalGrid';
+export { TerminalGrid } from './TerminalGrid.js';
+export type { TerminalGridProps, GridLayout } from './TerminalGrid.js';
 
 // Hooks
-export { useTerminalCore } from './useTerminalCore';
-export type { UseTerminalCoreOptions, UseTerminalCoreResult } from './useTerminalCore';
-
-// Renderers
-export {
-  DefaultRenderer,
-  getPreset,
-  mergeWithPreset,
-  getPresetNames,
-  PRESETS,
-  CRTEffect,
-  CRTEffectImpl,
-  TerminalPlane,
-  useTextureSync,
-  findXtermCanvas,
-} from './renderers/index';
+export { useTerminalCore } from './useTerminalCore.js';
 export type {
-  CRTOptions,
-  BloomOptions,
-  RendererOptions,
-  CRTPreset,
-  RendererType,
+  UseTerminalCoreOptions,
+  UseTerminalCoreResult,
+} from './useTerminalCore.js';
+
+// Terminal view engines (xterm | restty)
+export {
+  createTerminalView,
+  defaultTerminalViewFactory,
+  createXtermTerminalView,
+  createResttyTerminalView,
+  XtermTerminalView,
+  ResttyTerminalView,
+} from './views/index.js';
+export type {
+  TerminalEngineId,
+  TerminalView,
+  TerminalViewCreateOptions,
+  TerminalViewFactory,
+  TerminalViewTheme,
+  Unsubscribe,
+  CreateTerminalViewDeps,
+  LoadResttyXterm,
+  ResttyXtermTerminal,
+  ResttyXtermTerminalCtor,
+} from './views/index.js';
+
+// Core state types
+export type {
   TerminalCoreState,
   TerminalCoreActions,
-  TerminalRendererProps,
-  VirtualTerminalRendererProps,
-} from './renderers/index';
+} from './renderers/types.js';
