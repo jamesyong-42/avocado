@@ -49,10 +49,10 @@ import {
 import {
   PTYSessionManager,
   createPTYSessionManager,
+  createProxyPTYSession,
   TerminalServiceImpl,
   createTerminalService,
   createTerminalStoreSync,
-  type ProxySessionFactory,
   type ITerminalStoreSync,
 } from '@vibecook/avocado-sdk';
 import type {
@@ -87,7 +87,6 @@ import type { RemoteSessionAnnounce } from '@vibecook/avocado-sdk/types';
 type RemoteSessionOfferInternal = RemoteSessionOffer;
 
 import { createPTYSpawnFunction } from './pty-spawner.js';
-import { createProxyPTYSession } from './proxy-pty-session.js';
 import { IPCNotifier } from './notifier.js';
 import { LocalStoreBackend } from './local-store-backend.js';
 
@@ -295,15 +294,10 @@ export class AvocadoManager extends EventEmitter {
         this.peerCache.set(peer.ref, peer);
       }
 
-      // 3. Create the core session/terminal stack and wire the proxy
-      //    factory. Cast is needed because we intentionally did not import
-      //    `ProxySessionFactory` from `@vibecook/avocado-sdk` in
-      //    `proxy-pty-session.ts` (Risk 5 — keep that file types-only).
-      //    The shapes are structurally identical.
+      // 3. Create the core session/terminal stack and wire the canonical
+      //    proxy session factory from the SDK.
       const sessionManager = createPTYSessionManager();
-      sessionManager.setProxySessionFactory(
-        createProxyPTYSession as unknown as ProxySessionFactory
-      );
+      sessionManager.setProxySessionFactory(createProxyPTYSession);
       this.sessionManager = sessionManager;
       this.terminalService = createTerminalService(sessionManager);
 

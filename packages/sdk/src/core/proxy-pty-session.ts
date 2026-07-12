@@ -1,31 +1,26 @@
 /**
  * ProxyPTYSession — `IPTYSession` implementation over an `IPTYTransport`.
  *
- * Every remote session that surfaces in `PTYSessionManager` ends up wrapped
- * in one of these. Operations (`write`, `resize`, `kill`) are forwarded to
- * the transport; incoming events (`output`, `resized`, `sessionEnded`,
- * `focusChanged`) are translated back into the base class's internal state
- * via `pushOutput` / `setSize` / `setExited` / `setFocus`.
+ * This is the canonical proxy session used by `PTYSessionManager`: every
+ * remote session announced by a transport is wrapped in one of these. Local
+ * operations (`write`, `resize`, `kill`) are forwarded to the transport using
+ * the remote (un-namespaced) session ID; incoming transport events (`output`,
+ * `resized`, `sessionEnded`, `focusChanged`) are filtered by that ID and
+ * translated back into base-class state via `pushOutput` / `setSize` /
+ * `setExited` / `setFocus`.
  *
- * Dependency boundaries (Risk 5):
- *
- *  - Imports from `@vibecook/avocado-sdk/types` only: `BasePTYSession`, `IPTYSession`,
- *    `IPTYTransport`, and the announce/metadata types.
- *  - Does NOT import from `@vibecook/avocado-sdk` — the `ProxySessionFactory`
- *    signature is duplicated inline so this file stays types-only on the
- *    package graph.
- *
- * Ported from vibe-ctl's proxy-pty-session.ts (Phase D in the plan).
+ * Wire it up with `PTYSessionManager.setProxySessionFactory(createProxyPTYSession)`.
  */
 
-import { BasePTYSession } from '@vibecook/avocado-sdk/types';
+import { BasePTYSession } from '#types';
 import type {
   IPTYSession,
   IPTYTransport,
   SessionSource,
   IPCSessionMetadata,
   WSSessionMetadata,
-} from '@vibecook/avocado-sdk/types';
+} from '#types';
+import type { ProxySessionFactory } from './pty-session-manager.js';
 
 // ─── Options ───────────────────────────────────────────────────────────────
 
@@ -92,25 +87,15 @@ export class ProxyPTYSession extends BasePTYSession implements IPTYSession {
     };
     this.onResized = (sessionId, cols, rows): void => {
       if (sessionId !== this.remoteSessionId) return;
-      // `setSize` is protected on BasePTYSession.
-      (this as unknown as { setSize(c: number, r: number): void }).setSize(
-        cols,
-        rows
-      );
+      this.setSize(cols, rows);
     };
     this.onSessionEnded = (sessionId, exitCode): void => {
       if (sessionId !== this.remoteSessionId) return;
-      (
-        this as unknown as {
-          setExited(code: number, signal?: string): void;
-        }
-      ).setExited(exitCode);
+      this.setExited(exitCode);
     };
     this.onFocusChanged = (sessionId, focused): void => {
       if (sessionId !== this.remoteSessionId) return;
-      (
-        this as unknown as { setFocus(focused: boolean): void }
-      ).setFocus(focused);
+      this.setFocus(focused);
     };
 
     transport.on('output', this.onOutput);
@@ -159,13 +144,8 @@ export class ProxyPTYSession extends BasePTYSession implements IPTYSession {
  * Factory suitable for
  * `PTYSessionManager.setProxySessionFactory(createProxyPTYSession)`.
  *
- * We avoid importing `ProxySessionFactory` from `@vibecook/avocado-sdk` (Risk 5) —
- * the shape is duplicated here and structural TypeScript checks the
- * compatibility at the call site when `AvocadoManager` wires it up.
+ * Typed as `ProxySessionFactory` so TypeScript verifies the shape against the
+ * manager's contract at definition time — no cast needed at the call site.
  */
-export function createProxyPTYSession(
-  transport: IPTYTransport,
-  options: ProxyPTYSessionOptions
-): IPTYSession {
-  return new ProxyPTYSession(transport, options);
-}
+export const createProxyPTYSession: ProxySessionFactory = (transport, options) =>
+  new ProxyPTYSession(transport, options);

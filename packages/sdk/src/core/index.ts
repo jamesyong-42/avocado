@@ -19,6 +19,15 @@ export type {
   ProxySessionFactory,
 } from './pty-session-manager.js';
 
+// Proxy PTY Session
+export {
+  ProxyPTYSession,
+  createProxyPTYSession,
+} from './proxy-pty-session.js';
+export type {
+  ProxyPTYSessionOptions,
+} from './proxy-pty-session.js';
+
 // Terminal Service
 export {
   TerminalServiceImpl,
