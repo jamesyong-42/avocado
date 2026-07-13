@@ -1,6 +1,7 @@
 # Avocado
 
 [![CI](https://github.com/jamesyong-42/avocado/actions/workflows/ci.yml/badge.svg)](https://github.com/jamesyong-42/avocado/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-live-8fd14f?style=flat)](https://jamesyong-42.github.io/avocado/)
 [![npm version](https://img.shields.io/npm/v/@vibecook/avocado-sdk.svg?label=@vibecook/avocado-sdk)](https://www.npmjs.com/package/@vibecook/avocado-sdk)
 [![npm version](https://img.shields.io/npm/v/@vibecook/avocado.svg?label=@vibecook/avocado)](https://www.npmjs.com/package/@vibecook/avocado)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -13,6 +14,15 @@
 - **IPC** (Unix Domain Socket / Named Pipe) — bridge a CLI to a desktop app
 - **Mesh** — cross-device sync over Tailscale via [`@vibecook/truffle`](https://www.npmjs.com/package/@vibecook/truffle)
 - **WebSocket** — planned
+
+## Documentation
+
+**Live site:** [jamesyong-42.github.io/avocado](https://jamesyong-42.github.io/avocado/)
+
+| | |
+| --- | --- |
+| [Guide](https://jamesyong-42.github.io/avocado/) | Install, concepts, quick start, transports |
+| [API reference](https://jamesyong-42.github.io/avocado/api.html) | SDK subpaths, React surface, CLI |
 
 ## Install
 
@@ -45,8 +55,8 @@ avo --help
 
 | Package                    | Role                                               |
 | -------------------------- | -------------------------------------------------- |
-| `@vibecook/avocado-sdk`    | The library. Subpath exports carve out each module |
-| `@vibecook/avocado`        | CLI binary (`avo`)                                 |
+| [`@vibecook/avocado-sdk`](https://www.npmjs.com/package/@vibecook/avocado-sdk) | The library. Subpath exports carve out each module |
+| [`@vibecook/avocado`](https://www.npmjs.com/package/@vibecook/avocado) | CLI binary (`avo`) |
 
 Inside this monorepo:
 
@@ -55,7 +65,7 @@ Inside this monorepo:
 | `packages/sdk/`         | Source for `@vibecook/avocado-sdk`                        |
 | `packages/cli/`         | Source for `@vibecook/avocado`                            |
 | `apps/playground/`      | Electron showcase of cross-device mesh sync               |
-| `docs/`                 | Static docs site (`index.html` + `api.html`) on GitHub Pages |
+| `docs/`                 | Static docs site deployed to GitHub Pages                 |
 
 ## Architecture
 
@@ -73,7 +83,7 @@ All transports implement `IPTYTransport`. `PTYSessionManager` consumes them unif
 
 ## Status
 
-**Pre-alpha.** APIs may change before `1.0`. See the [docs site](https://jamesyong-42.github.io/avocado/) for the guide and API reference.
+**Pre-alpha.** APIs may change before `1.0`. See the [docs](https://jamesyong-42.github.io/avocado/) for the current guide and API reference.
 
 ## Development
 
