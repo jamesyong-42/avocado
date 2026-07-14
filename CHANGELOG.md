@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/jamesyong-42/avocado/compare/avocado-v0.2.2...avocado-v0.3.0) (2026-07-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **react:** `@vibecook/avocado-sdk/react` no longer exports TerminalCard, TerminalGrid, or HeadlessTerminal. Build chrome on TerminalSurface + useResizeHandle/useTerminalGrid/useTerminalSnapshot, or copy the reference implementations from apps/playground.
+
+### Features
+
+* add apps/ghostty — Ghostty-parity Electron showcase ([0413f4b](https://github.com/jamesyong-42/avocado/commit/0413f4b86c98c62d31868c414ea2e9f6c89f36c0))
+* **react:** make the react layer headless ([ddc76ef](https://github.com/jamesyong-42/avocado/commit/ddc76ef7de21a7a1e37c1bb7b8b4e8bf228123bd))
+
 ## [0.2.2](https://github.com/jamesyong-42/avocado/compare/avocado-v0.2.1...avocado-v0.2.2) (2026-07-12)
 
 
