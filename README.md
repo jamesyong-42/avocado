@@ -65,6 +65,7 @@ Inside this monorepo:
 | `packages/sdk/`         | Source for `@vibecook/avocado-sdk`                        |
 | `packages/cli/`         | Source for `@vibecook/avocado`                            |
 | `apps/playground/`      | Electron showcase of cross-device mesh sync               |
+| `apps/ghostty/`         | Ghostty-parity Electron app on the headless React primitives |
 | `docs/`                 | Static docs site deployed to GitHub Pages                 |
 
 ## Architecture

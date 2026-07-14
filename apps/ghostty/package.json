@@ -1,0 +1,36 @@
+{
+  "name": "@avocado-playground/ghostty",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ghostty-parity showcase — a minimal multi-terminal Electron app built on avocado's headless React primitives",
+  "type": "module",
+  "main": "out/main/index.js",
+  "scripts": {
+    "predev": "pnpm -C ../../packages/sdk build",
+    "dev": "electron-vite dev",
+    "prebuild": "pnpm -C ../../packages/sdk build",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "postinstall": "electron-rebuild -f -w node-pty"
+  },
+  "dependencies": {
+    "@vibecook/avocado-sdk": "workspace:*",
+    "node-pty": "^1.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "restty": "^0.2.0",
+    "xterm": "^5.3.0"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.6.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^35.2.0",
+    "electron-vite": "^3.0.0",
+    "typescript": "^5.5.0",
+    "vite": "^6.0.0"
+  }
+}
