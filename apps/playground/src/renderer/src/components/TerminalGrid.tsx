@@ -1,16 +1,14 @@
 /**
- * TerminalGrid - Display multiple terminals in a responsive grid
+ * TerminalGrid — playground grid of terminal cards with engine toggle.
+ *
+ * Playground chrome over the SDK's headless useTerminalGrid state (layout
+ * comes in via props; this component only renders).
  */
 
 import type { JSX } from 'react';
-import type { TerminalInfo, TerminalSettings, PtySession } from '#types';
-import type { TerminalEngineId } from './views/types.js';
-import { TerminalCard } from './TerminalCard.js';
-
-export interface GridLayout {
-  cols: number;
-  rows: number;
-}
+import type { TerminalInfo, TerminalSettings, PtySession } from '@vibecook/avocado-sdk/types';
+import type { GridLayout, TerminalEngineId } from '@vibecook/avocado-sdk/react';
+import { TerminalCard } from './TerminalCard';
 
 export interface TerminalGridProps {
   terminals: TerminalInfo[];

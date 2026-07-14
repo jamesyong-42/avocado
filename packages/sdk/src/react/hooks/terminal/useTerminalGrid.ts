@@ -1,5 +1,8 @@
 /**
- * Hook for terminal grid selection and settings management
+ * Hook for terminal grid selection and settings management.
+ *
+ * Headless: owns which terminals are in the grid, per-terminal settings,
+ * and a pluggable layout calculation. Rendering is entirely the caller's.
  */
 
 import { useState, useCallback } from 'react';
@@ -8,6 +11,15 @@ import type { TerminalInfo, TerminalSettings } from '#types';
 export interface GridLayout {
   cols: number;
   rows: number;
+}
+
+export interface UseTerminalGridOptions {
+  /** Maximum terminals in the grid (default 9; `Infinity` for unbounded). */
+  maxTerminals?: number;
+  /** Layout algorithm (default: near-square, {@link defaultGridLayout}). */
+  layout?: (count: number) => GridLayout;
+  /** Settings applied to terminals without explicit settings (default `{ autoResize: true }`). */
+  defaultSettings?: TerminalSettings;
 }
 
 export interface UseTerminalGridResult {
@@ -25,38 +37,41 @@ export interface UseTerminalGridResult {
   maxTerminals: number;
 }
 
-const MAX_TERMINALS = 9;
+const DEFAULT_MAX_TERMINALS = 9;
 const DEFAULT_SETTINGS: TerminalSettings = { autoResize: true };
 
-function calculateGridLayout(count: number): GridLayout {
+/** Near-square layout: cols = ⌈√count⌉, rows as needed. */
+export function defaultGridLayout(count: number): GridLayout {
   if (count <= 1) return { cols: 1, rows: 1 };
-  if (count <= 2) return { cols: 2, rows: 1 };
-  if (count <= 4) return { cols: 2, rows: 2 };
-  if (count <= 6) return { cols: 3, rows: 2 };
-  return { cols: 3, rows: 3 };
+  const cols = Math.ceil(Math.sqrt(count));
+  return { cols, rows: Math.ceil(count / cols) };
 }
 
-export function useTerminalGrid(): UseTerminalGridResult {
+export function useTerminalGrid({
+  maxTerminals = DEFAULT_MAX_TERMINALS,
+  layout = defaultGridLayout,
+  defaultSettings = DEFAULT_SETTINGS,
+}: UseTerminalGridOptions = {}): UseTerminalGridResult {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [settings, setSettings] = useState<Record<string, TerminalSettings>>({});
 
   const toggleSelection = useCallback((terminalId: string) => {
     setSelectedIds((prev) => {
       if (prev.includes(terminalId)) return prev.filter((id) => id !== terminalId);
-      if (prev.length >= MAX_TERMINALS) return prev;
+      if (prev.length >= maxTerminals) return prev;
       return [...prev, terminalId];
     });
-  }, []);
+  }, [maxTerminals]);
 
   const addToGrid = useCallback((terminalId: string): boolean => {
     let added = false;
     setSelectedIds((prev) => {
-      if (prev.includes(terminalId) || prev.length >= MAX_TERMINALS) return prev;
+      if (prev.includes(terminalId) || prev.length >= maxTerminals) return prev;
       added = true;
       return [...prev, terminalId];
     });
     return added;
-  }, []);
+  }, [maxTerminals]);
 
   const removeFromGrid = useCallback((terminalId: string) => {
     setSelectedIds((prev) => prev.filter((id) => id !== terminalId));
@@ -65,15 +80,15 @@ export function useTerminalGrid(): UseTerminalGridResult {
   const clearSelection = useCallback(() => { setSelectedIds([]); }, []);
 
   const getSettings = useCallback((terminalId: string): TerminalSettings => {
-    return settings[terminalId] || DEFAULT_SETTINGS;
-  }, [settings]);
+    return settings[terminalId] || defaultSettings;
+  }, [settings, defaultSettings]);
 
   const updateSettings = useCallback((terminalId: string, updates: Partial<TerminalSettings>) => {
     setSettings((prev) => ({
       ...prev,
-      [terminalId]: { ...(prev[terminalId] || DEFAULT_SETTINGS), ...updates },
+      [terminalId]: { ...(prev[terminalId] || defaultSettings), ...updates },
     }));
-  }, []);
+  }, [defaultSettings]);
 
   const resetSettings = useCallback((terminalId: string) => {
     setSettings((prev) => {
@@ -87,7 +102,7 @@ export function useTerminalGrid(): UseTerminalGridResult {
     return terminals.filter((t) => selectedIds.includes(t.id));
   }, [selectedIds]);
 
-  const gridLayout = calculateGridLayout(selectedIds.length);
+  const gridLayout = layout(selectedIds.length);
 
   return {
     selectedIds,
@@ -101,6 +116,6 @@ export function useTerminalGrid(): UseTerminalGridResult {
     getSettings,
     updateSettings,
     resetSettings,
-    maxTerminals: MAX_TERMINALS,
+    maxTerminals,
   };
 }

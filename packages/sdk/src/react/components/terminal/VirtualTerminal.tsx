@@ -1,16 +1,18 @@
 /**
- * VirtualTerminal — interactive terminal bound to a PTY session.
+ * VirtualTerminal — styled terminal bound to a PTY session.
  *
- * Engine-agnostic: xterm (default) or restty (libghostty-vt). Session I/O
- * goes through AvocadoProvider / TerminalBackend.
+ * Thin wrapper over {@link TerminalSurface} that keeps the legacy visual
+ * defaults (Tokyo Night / Ghostty host background, border radius, error
+ * overlay). All behavior lives in TerminalSurface / useTerminalCore.
+ *
+ * @deprecated Use {@link TerminalSurface} and style it from your own CSS —
+ * VirtualTerminal's baked-in colors and chrome will move out of the SDK in a
+ * future release.
  */
 
-import { useCallback, type CSSProperties, type JSX } from 'react';
-import { useTerminalCore } from './useTerminalCore.js';
+import { type CSSProperties, type JSX, type ReactNode } from 'react';
+import { TerminalSurface } from './TerminalSurface.js';
 import type { TerminalEngineId } from './views/types.js';
-// Side-effect: hide xterm helper textarea / style viewport. Also loaded
-// lazily inside XtermTerminalView; importing here covers HMR and default path.
-import 'xterm/css/xterm.css';
 
 export interface VirtualTerminalProps {
   sessionId: string;
@@ -43,138 +45,56 @@ export interface VirtualTerminalProps {
   resttyNerdIconScale?: number;
 }
 
-const HOST_FILL: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  width: '100%',
-  height: '100%',
-  minHeight: 0,
-  minWidth: 0,
-  overflow: 'hidden',
-};
+function renderLegacyError(error: Error): ReactNode {
+  return (
+    <div
+      role="alert"
+      style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 12,
+        background: 'rgba(26,27,38,0.95)',
+        color: '#f7768e',
+        fontSize: 12,
+        textAlign: 'center',
+        zIndex: 2,
+      }}
+    >
+      {error.message}
+    </div>
+  );
+}
 
 export function VirtualTerminal({
-  sessionId,
-  terminalId,
-  cols = 80,
-  rows = 24,
-  isActive = false,
-  autoResize = true,
-  onResize,
-  onInput,
-  onFocus,
-  onBlur,
   className = '',
-  fontSize = 14,
-  fontFamily = 'Menlo, Monaco, "Courier New", monospace',
-  convertEol = false,
-  suppressTerminalResponses = false,
   engine = 'xterm',
-  ghosttyThemeName,
-  resttyRenderer,
-  resttyLigatures,
-  resttyFontHinting,
-  resttyAlphaBlending,
-  resttyNerdIconScale,
+  autoResize = true,
+  isActive = false,
+  ...rest
 }: VirtualTerminalProps): JSX.Element {
-  const { state, actions, error } = useTerminalCore({
-    sessionId,
-    terminalId,
-    cols,
-    rows,
-    isActive,
-    autoResize,
-    onResize,
-    onInput,
-    onFocus,
-    onBlur,
-    fontSize,
-    fontFamily,
-    convertEol,
-    suppressTerminalResponses,
-    engine,
-    ghosttyThemeName,
-    resttyRenderer,
-    resttyLigatures,
-    resttyFontHinting,
-    resttyAlphaBlending,
-    resttyNerdIconScale,
-  });
-
-  const { containerRef, fixedDimensions, isReady } = state;
-
-  const handleClick = useCallback(() => {
-    actions.focus();
-    onFocus?.();
-  }, [actions, onFocus]);
-
   // Match Ghostty Default Style Dark host when restty is selected.
   const hostBg = engine === 'restty' ? '#282c34' : '#1a1b26';
 
-  const containerStyle: CSSProperties = autoResize
-    ? {
-        width: '100%',
-        height: '100%',
-        minHeight: '100px',
-        backgroundColor: hostBg,
-        borderRadius: '4px',
-        overflow: 'hidden',
-        position: 'relative',
-      }
-    : {
-        width: fixedDimensions?.width ?? 'auto',
-        height: fixedDimensions?.height ?? 'auto',
-        minWidth: fixedDimensions?.width ?? 'auto',
-        minHeight: fixedDimensions?.height ?? 'auto',
-        flexShrink: 0,
-        flexGrow: 0,
-        backgroundColor: hostBg,
-        borderRadius: '4px',
-        overflow: 'hidden',
-        position: 'relative',
-      };
+  const legacyStyle: CSSProperties = {
+    backgroundColor: hostBg,
+    borderRadius: '4px',
+    ...(autoResize ? { minHeight: '100px' } : {}),
+  };
 
   return (
-    <div
+    <TerminalSurface
+      {...rest}
+      engine={engine}
+      autoResize={autoResize}
+      isActive={isActive}
       className={`virtual-terminal ${className}`}
-      style={containerStyle}
-      data-terminal-id={terminalId}
-      data-session-id={sessionId}
-      data-is-active={isActive}
-      data-auto-resize={autoResize}
-      data-engine={engine}
-      data-ready={isReady}
-    >
-      {/* Engine host: absolute fill so xterm/restty always get a real size. */}
-      <div
-        ref={containerRef}
-        className="virtual-terminal-host"
-        onClick={handleClick}
-        onFocusCapture={onFocus}
-        onBlurCapture={onBlur}
-        style={HOST_FILL}
-      />
-      {error && (
-        <div
-          role="alert"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 12,
-            background: 'rgba(26,27,38,0.95)',
-            color: '#f7768e',
-            fontSize: 12,
-            textAlign: 'center',
-            zIndex: 2,
-          }}
-        >
-          {error.message}
-        </div>
-      )}
-    </div>
+      hostClassName="virtual-terminal-host"
+      style={legacyStyle}
+      renderError={renderLegacyError}
+    />
   );
 }
 

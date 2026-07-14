@@ -21,7 +21,6 @@
 import { useEffect, useRef, useState, type JSX } from 'react';
 import {
   AvocadoProvider,
-  TerminalGrid,
   usePTYSessions,
   useTerminals,
   useTerminalGrid,
@@ -30,6 +29,7 @@ import type { TerminalEngineId } from '@vibecook/avocado-sdk/react';
 
 import { createElectronBackend } from './electron-backend';
 import { AuthGate } from './components/AuthGate';
+import { TerminalGrid } from './components/TerminalGrid';
 import { PeersList } from './components/PeersList';
 import { SessionsList } from './components/SessionsList';
 import { TerminalsList } from './components/TerminalsList';

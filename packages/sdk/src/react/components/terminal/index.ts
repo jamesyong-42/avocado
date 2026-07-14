@@ -1,15 +1,9 @@
 // Components
+export { TerminalSurface } from './TerminalSurface.js';
+export type { TerminalSurfaceProps } from './TerminalSurface.js';
+
 export { VirtualTerminal } from './VirtualTerminal.js';
 export type { VirtualTerminalProps } from './VirtualTerminal.js';
-
-export { HeadlessTerminal } from './HeadlessTerminal.js';
-export type { HeadlessTerminalProps } from './HeadlessTerminal.js';
-
-export { TerminalCard } from './TerminalCard.js';
-export type { TerminalCardProps } from './TerminalCard.js';
-
-export { TerminalGrid } from './TerminalGrid.js';
-export type { TerminalGridProps, GridLayout } from './TerminalGrid.js';
 
 // Hooks
 export { useTerminalCore } from './useTerminalCore.js';

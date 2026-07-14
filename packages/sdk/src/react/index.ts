@@ -9,17 +9,11 @@ export { AvocadoProvider, useAvocadoBackend } from './context/AvocadoProvider.js
 export type { AvocadoProviderProps } from './context/AvocadoProvider.js';
 
 // Components
+export { TerminalSurface } from './components/terminal/TerminalSurface.js';
+export type { TerminalSurfaceProps } from './components/terminal/TerminalSurface.js';
+
 export { VirtualTerminal } from './components/terminal/VirtualTerminal.js';
 export type { VirtualTerminalProps } from './components/terminal/VirtualTerminal.js';
-
-export { HeadlessTerminal } from './components/terminal/HeadlessTerminal.js';
-export type { HeadlessTerminalProps } from './components/terminal/HeadlessTerminal.js';
-
-export { TerminalCard } from './components/terminal/TerminalCard.js';
-export type { TerminalCardProps } from './components/terminal/TerminalCard.js';
-
-export { TerminalGrid } from './components/terminal/TerminalGrid.js';
-export type { TerminalGridProps, GridLayout } from './components/terminal/TerminalGrid.js';
 
 export { useTerminalCore } from './components/terminal/useTerminalCore.js';
 export type {
@@ -89,8 +83,28 @@ export type {
 export { useTerminals } from './hooks/terminal/useTerminals.js';
 export type { UseTerminalsResult } from './hooks/terminal/useTerminals.js';
 
-export { useTerminalGrid } from './hooks/terminal/useTerminalGrid.js';
-export type { UseTerminalGridResult } from './hooks/terminal/useTerminalGrid.js';
+export { useTerminalGrid, defaultGridLayout } from './hooks/terminal/useTerminalGrid.js';
+export type {
+  GridLayout,
+  UseTerminalGridOptions,
+  UseTerminalGridResult,
+} from './hooks/terminal/useTerminalGrid.js';
+
+export { useTerminalSnapshot } from './hooks/terminal/useTerminalSnapshot.js';
+export type {
+  TerminalSnapshot,
+  UseTerminalSnapshotOptions,
+  UseTerminalSnapshotResult,
+} from './hooks/terminal/useTerminalSnapshot.js';
+
+export { useResizeHandle } from './hooks/useResizeHandle.js';
+export type {
+  UseResizeHandleOptions,
+  UseResizeHandleResult,
+  ResizeHandleDirection,
+  ResizeHandleProps,
+  ResizeHandleSize,
+} from './hooks/useResizeHandle.js';
 
 export { useTerminalAPI } from './hooks/terminal/useTerminalAPI.js';
 export type { UseTerminalAPIResult } from './hooks/terminal/useTerminalAPI.js';

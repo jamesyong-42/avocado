@@ -923,16 +923,16 @@ sessionManager.<span class="fn">registerSession</span>(session);</pre>
         <div class="step">
           <div class="step-marker">2</div>
           <div class="step-body">
-            <h3>Renderer — provider + grid</h3>
-            <p>Wrap your tree with <code style="font-size:13px;color:var(--accent-bright);background:var(--accent-soft);padding:1px 5px;border-radius:4px">AvocadoProvider</code> and drop in the terminal grid.</p>
+            <h3>Renderer — provider + headless surface</h3>
+            <p>Wrap your tree with <code style="font-size:13px;color:var(--accent-bright);background:var(--accent-soft);padding:1px 5px;border-radius:4px">AvocadoProvider</code> and drop in a terminal surface — behavior from the SDK, every pixel of chrome yours.</p>
             <div class="code-block">
               <div class="code-header"><span>App.tsx</span></div>
-              <pre><span class="kw">import</span> { <span class="ty">AvocadoProvider</span>, <span class="ty">TerminalGrid</span> } <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/react'</span>;
+              <pre><span class="kw">import</span> { <span class="ty">AvocadoProvider</span>, <span class="ty">TerminalSurface</span> } <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/react'</span>;
 
 <span class="kw">export function</span> <span class="fn">App</span>() {
   <span class="kw">return</span> (
     &lt;<span class="ty">AvocadoProvider</span> backend={electronBackend}&gt;
-      &lt;<span class="ty">TerminalGrid</span> /&gt;
+      &lt;<span class="ty">TerminalSurface</span> sessionId={sid} terminalId={tid} engine=<span class="str">"restty"</span> isActive /&gt;
     &lt;/<span class="ty">AvocadoProvider</span>&gt;
   );
 }</pre>
@@ -1045,12 +1045,12 @@ avo --no-sync bash</pre>
               <td>Root context — pass a <code>TerminalBackend</code> (Electron IPC, WebSocket, …)</td>
             </tr>
             <tr>
-              <td><code>TerminalGrid</code></td>
-              <td>Responsive grid of virtual terminals with active-tab handling</td>
+              <td><code>TerminalSurface</code></td>
+              <td>Headless terminal surface — behavior only, styled via <code>[data-active]</code>/<code>[data-engine]</code> attributes</td>
             </tr>
             <tr>
-              <td><code>TerminalCard</code> / <code>VirtualTerminal</code></td>
-              <td>Single terminal surface</td>
+              <td><code>useTerminalGrid</code> / <code>useResizeHandle</code></td>
+              <td>Headless grid state (pluggable layout) and drag-to-resize prop getters</td>
             </tr>
             <tr>
               <td><code>engine: 'xterm'</code></td>
@@ -1061,8 +1061,8 @@ avo --no-sync bash</pre>
               <td>Optional Ghostty VT path via <code>restty</code> peer (WASM + WebGPU/WebGL2)</td>
             </tr>
             <tr>
-              <td><code>usePTYSessions</code>, <code>useTerminalGrid</code>, …</td>
-              <td>Live session &amp; layout hooks</td>
+              <td><code>usePTYSessions</code>, <code>useTerminals</code>, <code>useTerminalSnapshot</code>, …</td>
+              <td>Live session &amp; terminal state hooks</td>
             </tr>
           </tbody>
         </table>

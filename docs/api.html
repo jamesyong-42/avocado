@@ -542,7 +542,7 @@
           </a>
           <a class="subpath-card" href="#react">
             <div class="name">…/react</div>
-            <div class="desc">Provider, grid, hooks, renderers</div>
+            <div class="desc">Provider, headless surface, hooks, engines</div>
           </a>
         </div>
         <div class="code-block">
@@ -552,13 +552,13 @@
 import { LocalPTYSession } from '@vibecook/avocado-sdk/node-pty';
 import { createUDSServer } from '@vibecook/avocado-sdk/transport-ipc';
 import { PTYMeshBridge } from '@vibecook/avocado-sdk/transport-truffle';
-import { AvocadoProvider, TerminalGrid } from '@vibecook/avocado-sdk/react';">Copy</button>
+import { AvocadoProvider, TerminalSurface } from '@vibecook/avocado-sdk/react';">Copy</button>
           </div>
           <pre><span class="kw">import</span> { <span class="fn">createPTYSessionManager</span> }     <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk'</span>;
 <span class="kw">import</span> { <span class="ty">LocalPTYSession</span> }             <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/node-pty'</span>;
 <span class="kw">import</span> { <span class="fn">createUDSServer</span> }             <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/transport-ipc'</span>;
 <span class="kw">import</span> { <span class="ty">PTYMeshBridge</span> }               <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/transport-truffle'</span>;
-<span class="kw">import</span> { <span class="ty">AvocadoProvider</span>, <span class="ty">TerminalGrid</span> } <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/react'</span>;</pre>
+<span class="kw">import</span> { <span class="ty">AvocadoProvider</span>, <span class="ty">TerminalSurface</span> } <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/react'</span>;</pre>
         </div>
       </section>
 
@@ -957,12 +957,12 @@ bridge.<span class="fn">initialize</span>(udsServer);
         </div>
         <div class="code-block">
           <div class="code-header"><span>App.tsx</span></div>
-          <pre><span class="kw">import</span> { <span class="ty">AvocadoProvider</span>, <span class="ty">TerminalGrid</span> } <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/react'</span>;
+          <pre><span class="kw">import</span> { <span class="ty">AvocadoProvider</span>, <span class="ty">TerminalSurface</span> } <span class="kw">from</span> <span class="str">'@vibecook/avocado-sdk/react'</span>;
 
 <span class="kw">export function</span> <span class="fn">App</span>() {
   <span class="kw">return</span> (
     &lt;<span class="ty">AvocadoProvider</span> backend={electronBackend}&gt;
-      &lt;<span class="ty">TerminalGrid</span> /&gt;
+      &lt;<span class="ty">TerminalSurface</span> sessionId={sid} terminalId={tid} engine=<span class="str">"restty"</span> isActive /&gt;
     &lt;/<span class="ty">AvocadoProvider</span>&gt;
   );
 }</pre>
@@ -972,16 +972,16 @@ bridge.<span class="fn">initialize</span>(udsServer);
         <div class="symbol">
           <div class="symbol-head">
             <span class="symbol-kind kind-comp">component</span>
-            <span class="symbol-name">&lt;TerminalGrid&gt;</span>
+            <span class="symbol-name">&lt;TerminalSurface&gt;</span>
           </div>
-          <div class="symbol-body"><p>Responsive grid of virtual terminals with resize and active-tab handling. Props: <code>TerminalGridProps</code>, layout via <code>GridLayout</code>.</p></div>
+          <div class="symbol-body"><p><strong>Headless</strong> interactive terminal bound to a PTY session. Owns behavior only — engine lifecycle, PTY I/O, auto-fit, click-to-focus, active/passive resize gating. Zero visual opinion: style from your own CSS via data attributes (<code>[data-active]</code>, <code>[data-ready]</code>, <code>[data-engine]</code>). <code>renderError</code> overrides error UI, <code>actionsRef</code> exposes imperative focus/fit/write, children render as overlay chrome.</p></div>
         </div>
         <div class="symbol">
           <div class="symbol-head">
             <span class="symbol-kind kind-comp">component</span>
-            <span class="symbol-name">&lt;TerminalCard&gt; · &lt;VirtualTerminal&gt; · &lt;HeadlessTerminal&gt;</span>
+            <span class="symbol-name">&lt;VirtualTerminal&gt; <span class="symbol-kind kind-type">deprecated</span></span>
           </div>
-          <div class="symbol-body"><p>Single terminal surfaces — card chrome, full virtual terminal, or headless (no DOM renderer).</p></div>
+          <div class="symbol-body"><p>Legacy styled wrapper over <code>TerminalSurface</code> (baked-in dark chrome). Prefer <code>TerminalSurface</code> — styled demo UI (cards, grids) lives in <code>apps/playground</code> and <code>apps/ghostty</code> as copyable recipes.</p></div>
         </div>
         <div class="symbol">
           <div class="symbol-head">
@@ -989,7 +989,7 @@ bridge.<span class="fn">initialize</span>(udsServer);
             <span class="symbol-name">TerminalView · TerminalEngineId</span>
           </div>
           <div class="symbol-body">
-            <p>Engine-neutral view contract. Engines: <code>'xterm'</code> (default) and <code>'restty'</code> (libghostty-vt). Factory: <code>createTerminalView(engine, options)</code>. Wire via <code>&lt;VirtualTerminal engine=&quot;restty&quot; /&gt;</code> or <code>useTerminalCore({ engine })</code>.</p>
+            <p>Engine-neutral view contract. Engines: <code>'xterm'</code> (default) and <code>'restty'</code> (libghostty-vt). Factory: <code>createTerminalView(engine, options)</code>. Wire via <code>&lt;TerminalSurface engine=&quot;restty&quot; /&gt;</code> or <code>useTerminalCore({ engine })</code>.</p>
           </div>
         </div>
 
@@ -1000,7 +1000,9 @@ bridge.<span class="fn">initialize</span>(udsServer);
             <tbody>
               <tr><td><code>usePTYSessions()</code></td><td>Live session list; optional <code>SessionSourceFilter</code></td></tr>
               <tr><td><code>useTerminals()</code></td><td>Virtual terminal state</td></tr>
-              <tr><td><code>useTerminalGrid()</code></td><td>Grid layout + active terminal helpers</td></tr>
+              <tr><td><code>useTerminalGrid(options?)</code></td><td>Headless grid selection/settings; pluggable <code>layout</code> fn, <code>maxTerminals</code> (default <code>defaultGridLayout</code>, 9)</td></tr>
+              <tr><td><code>useResizeHandle(options)</code></td><td>Drag-to-resize prop getters (<code>getHandleProps('e'|'s'|'se')</code>) with pointer capture + min-size clamping</td></tr>
+              <tr><td><code>useTerminalSnapshot(options)</code></td><td>Polled screen lines + cursor of a backend headless terminal</td></tr>
               <tr><td><code>useTerminalAPI()</code></td><td>Imperative terminal operations</td></tr>
               <tr><td><code>useRemoteSessions()</code></td><td>Mesh remote session offers</td></tr>
               <tr><td><code>useTerminalCore()</code></td><td>Low-level core state/actions for custom renderers</td></tr>
@@ -1009,7 +1011,7 @@ bridge.<span class="fn">initialize</span>(udsServer);
         </div>
 
         <h3>View / core types</h3>
-        <p><code>TerminalEngineId</code>, <code>TerminalView</code>, <code>TerminalViewCreateOptions</code>, <code>TerminalViewFactory</code>, <code>TerminalCoreState</code>, <code>TerminalCoreActions</code>.</p>
+        <p><code>TerminalEngineId</code>, <code>TerminalView</code>, <code>TerminalViewCreateOptions</code>, <code>TerminalViewFactory</code>, <code>TerminalCoreState</code>, <code>TerminalCoreActions</code>, <code>GridLayout</code>, <code>ResizeHandleDirection</code>, <code>TerminalSnapshot</code>.</p>
       </section>
 
       <!-- CLI -->
